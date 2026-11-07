@@ -34,9 +34,9 @@ export function TrashRows({
               {monogram(title)}
             </div>
 
-            <div className="flex min-h-[34px] min-w-0 flex-1 flex-col justify-center">
-              <div className="truncate text-[14px] font-medium text-ink">{title}</div>
-              <div className="mt-0.5 truncate text-[12px] text-ink-faint">
+            <div className="flex min-h-[2.125rem] min-w-0 flex-1 flex-col justify-center">
+              <div className="truncate text-[0.875rem] font-medium text-ink">{title}</div>
+              <div className="mt-0.5 truncate text-[0.75rem] text-ink-faint">
                 Deleted {formatRelativeTime(doc.deleted_at)}
               </div>
             </div>
