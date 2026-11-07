@@ -7,7 +7,7 @@ from modules.sidekick import config, gemini, mock, prompts
 from modules.sidekick.limits import SlidingWindowLimiter, TTLCache
 from modules.sidekick.usage import seconds_until_reset, usage
 
-FEATURES = ["latex", "explain"]
+FEATURES = ["latex", "explain", "fix", "check", "next"]
 
 
 class SidekickDisabled(Exception):
@@ -54,10 +54,10 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-async def _run(feature: str, user_id: int, text: str, on_working=None) -> tuple[str, bool]:
+async def _run(feature: str, user_id: int, text: str, on_working=None, prompt: str | None = None) -> tuple[str, bool]:
     """Returns (raw model answer, served_without_a_new_request). Raises SidekickDisabled, SidekickBusy or SidekickUpstreamError.
 
-    `on_working()` is called once the request has passed every limit and is about to go to the model (never for a cached answer), so a caller can show that the sidekick has started."""
+    `on_working()` is called once the request has passed every limit and is about to go to the model (never for a cached answer), so a caller can show that the sidekick has started. `text` identifies the request (cache key); `prompt` is what the model is shown, defaulting to `text` in <input> tags."""
     global _cooldown_until
     current_mode = config.mode()
     if current_mode == "disabled":
@@ -103,10 +103,8 @@ async def _run(feature: str, user_id: int, text: str, on_working=None) -> tuple[
             if current_mode == "mock":
                 answer = await mock.mock_generate(feature, text)
             else:
-                system, max_tokens = (
-                    (prompts.LATEX_SYSTEM, 1024) if feature == "latex" else (prompts.EXPLAIN_SYSTEM, 2048)
-                )
-                answer = await gemini.generate(system, prompts.wrap_input(text), max_output_tokens=max_tokens)
+                system, max_tokens = prompts.SYSTEM[feature]
+                answer = await gemini.generate(system, prompt or prompts.wrap_input(text), max_output_tokens=max_tokens)
         except gemini.GeminiBusy as e:
             _cooldown_until = time.monotonic() + e.retry_after
             raise SidekickBusy(e.retry_after, "Google quota") from None
@@ -177,6 +175,86 @@ async def explain(user_id: int, latex: str, on_working=None) -> tuple[str, list[
     if not summary and not steps:
         raise SidekickUpstreamError("empty explanation")
     return summary, steps, from_cache
+
+
+def parse_fields(raw: str, keys: tuple[str, ...]) -> dict[str, str]:
+    """Reads "KEY: value" lines (a value may continue on the lines after it) into a dict keyed by the upper-case key."""
+    pattern = re.compile(r"^\s*(" + "|".join(keys) + r")\s*:\s*(.*)$", re.IGNORECASE)
+    fields: dict[str, str] = {}
+    current = None
+    for line in raw.splitlines():
+        match = pattern.match(line)
+        if match:
+            current = match.group(1).upper()
+            fields[current] = match.group(2)
+        elif current is not None:
+            fields[current] += "\n" + line
+    return {key: value.strip() for key, value in fields.items()}
+
+
+def clean_steps(steps: list[str]) -> list[str]:
+    return [re.sub(r"\s+", " ", step).strip() for step in steps if step.strip()]
+
+
+def _numbered(steps: list[str]) -> str:
+    return "\n".join(f"{n}. {step}" for n, step in enumerate(steps, 1))
+
+
+async def fix(user_id: int, latex: str, error: str = "", on_working=None) -> dict:
+    """Repairs LaTeX that fails to render. `error` is the renderer's message, if the caller has one."""
+    latex, error = latex.strip(), _normalize(error)[:500]
+    prompt = prompts.wrap_input(latex) + (f"\n<error>\n{error}\n</error>" if error else "")
+    answer, from_cache = await _run("fix", user_id, f"{latex}\n--\n{error}", on_working, prompt)
+    fields = parse_fields(answer, ("LATEX", "WHY"))
+    fixed = clean_latex(fields.get("LATEX") or answer)
+    if not fixed:
+        raise SidekickUpstreamError("empty fix")
+    return {
+        "latex": fixed,
+        "why": fields.get("WHY", ""),
+        "changed": _normalize(fixed) != _normalize(latex),
+        "cached": from_cache,
+    }
+
+
+async def check_work(user_id: int, steps: list[str], on_working=None) -> dict:
+    """Finds the first step of a derivation that doesn't follow from the one before."""
+    steps = clean_steps(steps)
+    if not steps:
+        raise SidekickUpstreamError("no steps")
+    answer, from_cache = await _run("check", user_id, _numbered(steps), on_working)
+    fields = parse_fields(answer, ("VERDICT", "STEP", "WHY", "FIX"))
+    verdict = fields.get("VERDICT", "").upper()
+    number = re.search(r"\d+", fields.get("STEP", ""))
+    step = int(number.group()) if number else None
+    if step is not None and not 1 <= step <= len(steps):
+        step = None
+    if not verdict and step is None:
+        raise SidekickUpstreamError("unreadable check")
+    is_ok = verdict.startswith("OK") or (not verdict and step is None)
+    suggestion = clean_latex(fields["FIX"]) if fields.get("FIX") else None
+    return {
+        "ok": is_ok,
+        "step": None if is_ok else step,
+        "why": fields.get("WHY", ""),
+        "suggestion": None if is_ok else (suggestion or None),
+        "cached": from_cache,
+    }
+
+
+async def next_step(user_id: int, steps: list[str], on_working=None) -> dict:
+    """Suggests the single next step of a derivation."""
+    steps = clean_steps(steps)
+    if not steps:
+        raise SidekickUpstreamError("no steps")
+    answer, from_cache = await _run("next", user_id, _numbered(steps), on_working)
+    fields = parse_fields(answer, ("NEXT", "WHY"))
+    # A model that ignores the format still gets a chance: its whole answer is taken as the step. An empty one is an error.
+    suggestion = clean_latex(fields["NEXT"] if "NEXT" in fields else answer)
+    if not suggestion:
+        raise SidekickUpstreamError("unreadable step")
+    done = suggestion.strip().upper().rstrip(".") == "DONE"
+    return {"next": None if done else suggestion, "done": done, "why": fields.get("WHY", ""), "cached": from_cache}
 
 
 def status() -> dict:

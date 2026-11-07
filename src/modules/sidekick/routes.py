@@ -7,11 +7,16 @@ from modules.sidekick.schemas import (
     ExplainIntoDocRequest,
     ExplainRequest,
     ExplainResponse,
+    FixRequest,
+    FixResponse,
     IntoDocResponse,
     LatexIntoDocRequest,
     LatexRequest,
     LatexResponse,
+    CheckResponse,
+    NextResponse,
     StatusResponse,
+    StepsRequest,
 )
 
 router = APIRouter(prefix="/sidekick", tags=["sidekick"])
@@ -52,6 +57,33 @@ async def sidekick_explain(data: ExplainRequest, current_user: UserPrivateRespon
     except _HANDLED as e:
         raise _translate(e) from None
     return {"summary": summary, "steps": steps, "cached": cached, "mock": config.mode() == "mock"}
+
+
+@router.post("/fix", response_model=FixResponse)
+async def sidekick_fix(data: FixRequest, current_user: UserPrivateResponse = Depends(get_current_user)):
+    try:
+        result = await service.fix(current_user.id, data.latex, data.error)
+    except _HANDLED as e:
+        raise _translate(e) from None
+    return {**result, "mock": config.mode() == "mock"}
+
+
+@router.post("/check", response_model=CheckResponse)
+async def sidekick_check(data: StepsRequest, current_user: UserPrivateResponse = Depends(get_current_user)):
+    try:
+        result = await service.check_work(current_user.id, data.steps)
+    except _HANDLED as e:
+        raise _translate(e) from None
+    return {**result, "mock": config.mode() == "mock"}
+
+
+@router.post("/next", response_model=NextResponse)
+async def sidekick_next(data: StepsRequest, current_user: UserPrivateResponse = Depends(get_current_user)):
+    try:
+        result = await service.next_step(current_user.id, data.steps)
+    except _HANDLED as e:
+        raise _translate(e) from None
+    return {**result, "mock": config.mode() == "mock"}
 
 
 # --- Sidekick as a collaborator -----------------------------------------------------------------------------------

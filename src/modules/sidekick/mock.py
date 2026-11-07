@@ -1,7 +1,8 @@
 """Canned answers for SIDEKICK_MOCK=1, so the UI can be built without spending any quota.
 
-Two triggers help test the UI's quiet states: an input containing "__busy__" gets the "busy" response, and one
-containing "__error__" gets the generic upstream error.
+Triggers that help test the UI: an input containing "__busy__" gets the "busy" response and one containing "__error__"
+gets the generic upstream error. For "check my work", "__ok__" in the steps says every step is fine; otherwise the second
+step (or the first, if there is only one) is flagged. For "next step", "__done__" says the derivation is finished.
 """
 
 import asyncio
@@ -25,10 +26,28 @@ _EXPLAIN = (
     "3. Substitute the values you know and simplify."
 )
 
+_FIX = "LATEX: \\frac{1}{2}\nWHY: The fraction was missing a closing brace."
+_CHECK_OK = "VERDICT: OK\nWHY: Every step follows from the one before."
+_CHECK_WRONG = (
+    "VERDICT: ERROR\nSTEP: {step}\n"
+    "WHY: This step doesn't follow from the one before it.\n"
+    "FIX: x = 2"
+)
+_NEXT = "NEXT: x = 3\nWHY: Divide both sides by 2."
+_NEXT_DONE = "NEXT: DONE\nWHY: The answer is already reached."
+
 
 async def mock_generate(feature: str, text: str) -> str:
     if MOCK_DELAY:
         await asyncio.sleep(MOCK_DELAY)
+    if feature == "fix":
+        return _FIX
+    if feature == "check":
+        if "__ok__" in text:
+            return _CHECK_OK
+        return _CHECK_WRONG.format(step=2 if "\n" in text.strip() else 1)
+    if feature == "next":
+        return _NEXT_DONE if "__done__" in text else _NEXT
     if feature == "latex":
         lowered = text.lower()
         for needle, latex in _LATEX:
