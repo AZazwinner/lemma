@@ -7,6 +7,7 @@ import {
     openNewDoc,
     openSidekickMenu,
     shareDoc,
+    skipUnlessMock,
 } from "./sidekick-helpers"
 
 // Two browsers (separate contexts, so separate logins) on the same document.
@@ -45,6 +46,7 @@ test("edits from two users on one document reach each other, both ways", async (
 test("a sidekick suggestion stays private until it is accepted, then syncs like any edit", async ({ browser }) => {
     const { a, b } = await twoWriters(browser, "mp_ghost")
     try {
+        await skipUnlessMock(a)
         await focusBlock(a)
         await a.keyboard.type("integral of x squared")
         await expect.poll(() => blockSource(b)).toBe("integral of x squared")
@@ -78,6 +80,7 @@ const INTEGRAL_BLOCK = "$$\n\\int_0^1 x^2 \\, dx\n$$"
 test("the Sidekick joins as a collaborator: it shows in presence, its block reaches both users, then it leaves", async ({ browser }) => {
     const { a, b } = await twoWriters(browser, "mp_collab")
     try {
+        await skipUnlessMock(a)
         await focusBlock(a)
         await a.keyboard.type("integral of x squared")
         await expect.poll(() => blockSource(b)).toBe("integral of x squared")
@@ -129,6 +132,7 @@ test("someone with view-only access can't make the Sidekick write", async ({ bro
         await shareDoc(a, await currentUserId(b), "read")
         await b.goto(url, { waitUntil: "networkidle" })
         await b.waitForTimeout(1000)
+        await skipUnlessMock(b)
 
         await openSidekickMenu(b)
         await expect(b.getByTestId("sidekick-collab-switch")).toHaveCount(0)
@@ -145,6 +149,7 @@ test("someone with view-only access can't make the Sidekick write", async ({ bro
 test("a flagged step is private to the person who asked, and Use suggestion syncs like a normal edit", async ({ browser }) => {
     const { a, b } = await twoWriters(browser, "mp_check")
     try {
+        await skipUnlessMock(a)
         await focusBlock(a)
         await a.keyboard.type("2x + 3 = 7")
         await a.keyboard.press("Shift+Enter")

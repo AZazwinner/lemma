@@ -128,29 +128,47 @@ them.
 
 ## Sidekick (AI helper)
 
-An optional helper that turns a description into LaTeX and explains an equation step by step, using the Google Gemini API
-(free tier). It only runs when a user asks it to, never while typing. The API key lives in `src/.env` on the backend and is
-never sent to the browser or logged.
+An optional helper, built on the Google Gemini API (free tier). It only runs when a user asks it to, never while typing, and
+nothing it suggests goes into the document unless you accept it (Tab or a click; Esc dismisses). The API key lives in
+`src/.env` on the backend and is never sent to the browser or logged.
+
+Click the sparkle icon beside the collaborator avatars (it stays closed until you do):
+
+| Action | What it does |
+|---|---|
+| **Describe → LaTeX** | Turns your selection, or the block, into LaTeX. Shown as ghost text. Also: type `@sidekick integral of x squared`, press `Ctrl/Cmd+Enter`, or pick **Sidekick** from the `/` menu. |
+| **Explain this equation** | Plain-language, step-by-step, in a small card. **Insert below** adds it to the block if you click it. |
+| **Photo → LaTeX** | Choose a picture of maths. It is shrunk in the browser (under 600 KiB) and read by the model; the result is ghost text. |
+| **Fix LaTeX error** | KaTeX finds the equation that won't render (in your browser, no request), and the model suggests a repair. |
+| **Check my work** | One step per line. The first step that doesn't follow is highlighted, with the reason and a suggested fix (**Use suggestion** is a click). |
+| **Suggest next step** | A ghost line after your last step. |
+| **Join as a collaborator** (switch) | Off by default. When on, Describe and Explain make the Sidekick appear in the presence list like another person and write its answer into the document as a new block, through the normal live-editing path. Needs write access and the document open. |
 
 | Variable (in `src/.env`) | Meaning |
 |---|---|
 | `GEMINI_API_KEY` | A key from <https://aistudio.google.com/apikey>. Without one, the sidekick runs in **mock mode**. |
 | `GEMINI_MODEL` | Required with a key. Pick the model with the most free requests per day at <https://aistudio.google.com/rate-limit>. |
-| `GEMINI_VISION_MODEL` | Optional, for reading photos. Defaults to `GEMINI_MODEL`. |
+| `GEMINI_VISION_MODEL` | Optional, for reading photos. Defaults to `GEMINI_MODEL`. In testing, the Gemma models answered image requests with HTTP 500, while a Gemini Flash Lite model read a picture correctly, so set this to one of those if Photo → LaTeX fails. |
 | `GEMINI_THINKING_LEVEL` | Optional (`minimal`, `low`...). Cuts the tokens a thinking model spends. Unset sends nothing. |
 | `SIDEKICK_MOCK` | `1` forces mock mode even with a key; `0` switches the sidekick off when there is no key. |
 | `SIDEKICK_USER_PER_MINUTE` | Requests one user can make per minute (default 5). |
 | `SIDEKICK_DAILY_BUDGET` | Real API requests per day, all users together (default 200). Keep it below your model's free daily limit. |
 | `SIDEKICK_CACHE_SECONDS` | How long an identical request is answered from memory (default 300). |
+| `SIDEKICK_TIMEOUT_SECONDS` | How long to wait for Google (default 60). A 31B model took 20 to 30 seconds per answer in testing. |
 
 **Mock mode** returns canned answers and makes no API calls, so you can build UI without spending quota. In mock mode, text
 containing `__busy__` returns the "busy, try again" response and `__error__` returns the generic error, to test those states.
+For Check my work, `__ok__` in the steps means "every step follows"; for Suggest next step, `__done__` means "finished".
 
 **Quota.** The free tier is small, so the backend protects it: a per-user limit, a daily budget counted per Pacific day
 (Google's quota resets at midnight Pacific; the count is kept in the gitignored `src/.sidekick_usage` so a restart doesn't
 reset it), identical requests answered from a cache and never sent twice at once, and a pause after Google answers 429.
 `GET /sidekick/status` (signed in) shows `used_today` against `daily_budget`, and each real request logs `sidekick: n/budget today`.
 The Docker files don't pass the Sidekick variables through; add them to the compose `environment` if you deploy that way.
+
+**Tests.** The backend tests and the Sidekick Playwright specs never call Google. The specs expect canned answers, so they
+skip themselves unless the backend runs with `SIDEKICK_MOCK=1` (set it in your shell or `src/.env` for the e2e run, then
+set it back).
 
 ## Running the backend behind a Cloudflare Tunnel
 
