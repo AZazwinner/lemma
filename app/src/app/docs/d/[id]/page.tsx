@@ -17,6 +17,7 @@ import { ThemeToggle } from "@/components/ThemeToggle"
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
 import { VersionHistoryPopover } from "./VersionHistoryPopover"
 import type { ConnectionStatus } from "./yjs/provider"
+import { SidekickButton } from "@/components/sidekick/SidekickButton"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -177,6 +178,8 @@ export default function DocPage() {
 
         <div className="flex items-center gap-3">
           <PresenceStack users={presence} />
+
+          <SidekickButton readOnly={isReadOnly} />
 
           <ThemeToggle />
 
