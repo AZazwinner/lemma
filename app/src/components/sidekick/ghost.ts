@@ -1,5 +1,6 @@
 import { Decoration, type DecorationSet, EditorView, WidgetType } from "@codemirror/view"
 import { EditorState, type Extension, StateEffect, StateField } from "@codemirror/state"
+import katex from "katex"
 import { mentionAt, previewOf } from "@/lib/sidekick-text"
 
 // Ghost text for the sidekick: a suggestion drawn after the text it would replace. It is a decoration, not part of the
@@ -21,7 +22,11 @@ export type GhostSuggestion = {
      * insert a line (the next step) use the whole block, since the caret is rarely exactly where the line goes.
      */
     scope?: { from: number; to: number }
+    /** How the ghost is drawn: a repaired equation with its render, or the next step on a line of its own. Looks only. */
+    look?: GhostLook
 }
+
+export type GhostLook = "repair" | "next"
 
 export type GhostState = { suggestion: GhostSuggestion | null; working: number | null }
 
@@ -36,24 +41,40 @@ class GhostWidget extends WidgetType {
         readonly text: string,
         readonly hint: string,
         readonly onClick: ((view: EditorView) => void) | null,
-        readonly kind: "suggestion" | "working" | "hint"
+        readonly kind: "suggestion" | "working" | "hint",
+        readonly look: GhostLook | null = null
     ) {
         super()
     }
 
     eq(other: GhostWidget) {
-        return other.text === this.text && other.hint === this.hint && other.kind === this.kind
+        return other.text === this.text && other.hint === this.hint && other.kind === this.kind && other.look === this.look
     }
 
     toDOM(view: EditorView) {
         const wrap = document.createElement("span")
-        wrap.className = `cm-sidekick-ghost cm-sidekick-${this.kind}`
+        wrap.className = `cm-sidekick-ghost cm-sidekick-${this.kind}${this.look ? ` cm-sidekick-look-${this.look}` : ""}`
         wrap.setAttribute("aria-hidden", "true")
         wrap.setAttribute("data-sidekick-ghost", this.kind)
 
-        const label = document.createElement("span")
-        label.textContent = this.text
-        wrap.append(label)
+        if (this.look === "repair") {
+            // The repaired LaTeX and how it renders, side by side.
+            const code = document.createElement("code")
+            code.textContent = this.text
+            const render = document.createElement("span")
+            render.className = "cm-sidekick-render"
+            katex.render(this.text, render, { throwOnError: false, strict: "ignore" })
+            wrap.append(chip(WRENCH, "Suggested repair"), code, render)
+        } else if (this.look === "next") {
+            const line = document.createElement("span")
+            line.className = "cm-sidekick-line"
+            line.textContent = this.text
+            wrap.append(line, chip(ARROW, "Suggested next step"))
+        } else {
+            const label = document.createElement("span")
+            label.textContent = this.text
+            wrap.append(label)
+        }
 
         if (this.hint) {
             const kbd = document.createElement("kbd")
@@ -79,7 +100,20 @@ class GhostWidget extends WidgetType {
     }
 }
 
-export const ghostField = StateField.define<GhostState>({
+// Lucide's wrench and arrow-right, at chip size.
+const WRENCH =
+    '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'
+const ARROW = '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>'
+
+function chip(paths: string, text: string) {
+    const el = document.createElement("span")
+    el.className = "cm-sidekick-chip"
+    el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`
+    el.append(text)
+    return el
+}
+
+export const ghostField =StateField.define<GhostState>({
     create: () => ({ suggestion: null, working: null }),
     update(value, tr) {
         let { suggestion, working } = value
@@ -126,9 +160,11 @@ export const ghostField = StateField.define<GhostState>({
         EditorView.decorations.from(field, (state): DecorationSet => {
             if (state.suggestion) {
                 // The click handler is attached by the extension (see ghostTheme/ghostExtension) so this file holds no app logic.
+                const look = state.suggestion.look ?? null
+                const text = look ? previewOf(state.suggestion.label, 140) : `→ ${previewOf(state.suggestion.label)}`
                 return Decoration.set([
                     Decoration.widget({
-                        widget: new GhostWidget(`→ ${previewOf(state.suggestion.label)}`, "Tab", acceptGhost, "suggestion"),
+                        widget: new GhostWidget(text, "Tab", acceptGhost, "suggestion", look),
                         side: 1,
                     }).range(state.suggestion.at ?? state.suggestion.to),
                 ])
@@ -144,7 +180,7 @@ export const ghostField = StateField.define<GhostState>({
 
 const ghostTheme = EditorView.baseTheme({
     ".cm-sidekick-ghost": {
-        color: "var(--muted-foreground)",
+        color: "var(--ink-faint)",
         marginLeft: "0.5em",
         fontSize: "0.85em",
         fontStyle: "italic",
@@ -159,9 +195,61 @@ const ghostTheme = EditorView.baseTheme({
         fontFamily: "var(--font-sans, sans-serif)",
         fontStyle: "normal",
         fontSize: "0.8em",
-        border: "1px solid var(--border)",
+        color: "var(--ink-soft)",
+        background: "var(--sheet)",
+        border: "1px solid var(--hairline)",
         borderRadius: "0.3em",
     },
+    ".cm-sidekick-suggestion:hover": { color: "var(--ink-soft)" },
+    // "Suggested repair" / "Suggested next step": a small tinted chip names what the ghost is.
+    ".cm-sidekick-chip": {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "5px",
+        padding: "1px 9px",
+        borderRadius: "999px",
+        background: "var(--tint)",
+        color: "var(--primary)",
+        fontFamily: "var(--font-sans, sans-serif)",
+        fontStyle: "normal",
+        fontSize: "12px",
+        fontWeight: "500",
+        lineHeight: "1.5",
+        whiteSpace: "nowrap",
+    },
+    ".cm-sidekick-chip svg": { width: "12px", height: "12px", flexShrink: "0" },
+    ".cm-sidekick-look-repair, .cm-sidekick-look-next": {
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "6px 10px",
+        width: "fit-content",
+        maxWidth: "100%",
+        margin: "6px 0 2px",
+        fontStyle: "normal",
+        fontSize: "0.9em",
+    },
+    // The repair stays in the sentence, next to the equation it would replace.
+    ".cm-sidekick-look-repair": { display: "inline-flex", margin: "0 0 0 0.6em", verticalAlign: "middle" },
+    ".cm-sidekick-look-repair kbd, .cm-sidekick-look-next kbd": { marginLeft: "0" },
+    ".cm-sidekick-look-repair code": {
+        fontFamily: "var(--font-mono, monospace)",
+        fontSize: "12.5px",
+        color: "var(--ink)",
+        background: "var(--muted)",
+        padding: "1px 6px",
+        borderRadius: "4px",
+    },
+    ".cm-sidekick-render": { color: "var(--ink)" },
+    // The next step sits on a line of its own, faded, in a dashed outline. It isn't an equation yet, so no number.
+    ".cm-sidekick-look-next": {
+        padding: "4px 10px",
+        border: "1px dashed color-mix(in srgb, var(--primary) 32%, transparent)",
+        borderRadius: "6px",
+        transition: "border-color 0.15s var(--ease)",
+    },
+    ".cm-sidekick-look-next:hover": { borderColor: "color-mix(in srgb, var(--primary) 55%, transparent)" },
+    ".cm-sidekick-look-next .cm-sidekick-line": { color: "var(--ink)", opacity: "0.5" },
 })
 
 export const getGhost = (state: EditorState): GhostSuggestion | null => state.field(ghostField, false)?.suggestion ?? null
@@ -238,10 +326,12 @@ export const flagField = StateField.define<Flag | null>({
 
 const flagTheme = EditorView.baseTheme({
     ".cm-sidekick-flag": {
-        textDecoration: "underline wavy",
-        textDecorationColor: "var(--destructive)",
-        textUnderlineOffset: "0.2em",
-        backgroundColor: "color-mix(in oklab, var(--destructive) 12%, transparent)",
+        textDecorationLine: "underline",
+        textDecorationStyle: "wavy",
+        textDecorationColor: "var(--pencil)",
+        textDecorationThickness: "1px",
+        textUnderlineOffset: "0.25em",
+        backgroundColor: "var(--pencil-wash)",
         borderRadius: "0.2em",
     },
 })

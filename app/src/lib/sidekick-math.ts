@@ -54,6 +54,7 @@ export async function fixLatexError(): Promise<void> {
             insert: result.latex,
             label: result.latex,
             scope: { from: 0, to: now.length },
+            look: "repair",
         })
         if (result.why) notify({ kind: "info", text: `${result.why} Tab to accept.` })
     } catch (error) {
@@ -154,6 +155,7 @@ export async function suggestNextStep(): Promise<void> {
             insert: `\n${result.next}`,
             label: result.next,
             scope: { from: 0, to: now.length },
+            look: "next",
         })
         if (result.why) notify({ kind: "info", text: `${result.why} Tab to add it.` })
     } catch (error) {
