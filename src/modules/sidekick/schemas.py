@@ -34,3 +34,20 @@ class StatusResponse(BaseModel):
     daily_budget: int
     user_per_minute: int
     features: list[str]
+
+
+class LatexIntoDocRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_TEXT_CHARS)
+    # The block the writer is in; the Sidekick's block goes right after it. Without one it goes at the end.
+    after_block_id: str | None = Field(default=None, max_length=64)
+
+
+class ExplainIntoDocRequest(BaseModel):
+    latex: str = Field(min_length=1, max_length=MAX_LATEX_CHARS)
+    after_block_id: str | None = Field(default=None, max_length=64)
+
+
+class IntoDocResponse(BaseModel):
+    block_id: str
+    cached: bool
+    mock: bool

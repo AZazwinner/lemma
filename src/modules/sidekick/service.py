@@ -54,8 +54,10 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-async def _run(feature: str, user_id: int, text: str) -> tuple[str, bool]:
-    """Returns (raw model answer, served_without_a_new_request). Raises SidekickDisabled, SidekickBusy or SidekickUpstreamError."""
+async def _run(feature: str, user_id: int, text: str, on_working=None) -> tuple[str, bool]:
+    """Returns (raw model answer, served_without_a_new_request). Raises SidekickDisabled, SidekickBusy or SidekickUpstreamError.
+
+    `on_working()` is called once the request has passed every limit and is about to go to the model (never for a cached answer), so a caller can show that the sidekick has started."""
     global _cooldown_until
     current_mode = config.mode()
     if current_mode == "disabled":
@@ -95,6 +97,8 @@ async def _run(feature: str, user_id: int, text: str) -> tuple[str, bool]:
     future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
     _inflight[key] = future
     try:
+        if on_working is not None:
+            on_working()
         try:
             if current_mode == "mock":
                 answer = await mock.mock_generate(feature, text)
@@ -159,16 +163,16 @@ def parse_explanation(raw: str) -> tuple[str, list[str]]:
     return summary, steps[:8]
 
 
-async def to_latex(user_id: int, text: str) -> tuple[str, bool]:
-    answer, from_cache = await _run("latex", user_id, _normalize(text))
+async def to_latex(user_id: int, text: str, on_working=None) -> tuple[str, bool]:
+    answer, from_cache = await _run("latex", user_id, _normalize(text), on_working)
     latex = clean_latex(answer)
     if not latex:
         raise SidekickUpstreamError("empty latex")
     return latex, from_cache
 
 
-async def explain(user_id: int, latex: str) -> tuple[str, list[str], bool]:
-    answer, from_cache = await _run("explain", user_id, latex.strip())
+async def explain(user_id: int, latex: str, on_working=None) -> tuple[str, list[str], bool]:
+    answer, from_cache = await _run("explain", user_id, latex.strip(), on_working)
     summary, steps = parse_explanation(answer)
     if not summary and not steps:
         raise SidekickUpstreamError("empty explanation")

@@ -183,6 +183,24 @@ class YRoom:
         for change in changes:
             self._spawn(self.broadcast(pycrdt.create_update_message(change), None))
 
+    async def apply_server_edit(self, edit) -> bool:
+        """Runs `edit(ydoc)` and sends what it changed exactly as an update from a local socket is sent: to every socket in this room, to the other replicas through the bus, and to the database through the debounced save. Used by modules (the Sidekick) that write into a document on a user's behalf. Normal editing never goes through here. Returns False if the edit changed nothing.
+
+        Nothing here awaits between starting and stopping the capture, so a socket's own update can't be mixed in."""
+        self._capture = []
+        try:
+            edit(self.ydoc)
+        finally:
+            updates, self._capture = self._capture, None
+        for update in updates:
+            await self.broadcast(pycrdt.create_update_message(update), None)
+            if self.bus is not None:
+                self._publish_queue.put_nowait(update)
+        if updates:
+            self.touch_save_timer()
+            self.maybe_flush_on_interval()
+        return bool(updates)
+
     def _on_ydoc_update(self, event) -> None:
         if self._capture is not None:
             self._capture.append(event.update)
