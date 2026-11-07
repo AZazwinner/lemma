@@ -358,7 +358,7 @@ async function start() {
       if (!apiOnly) say(`    App       ${webUrl}`);
       say(`    API       ${apiUrl}${webOnly ? "   (shared backend)" : ""}`);
       if (!webOnly) say(`    Database  ${describeDatabase()}   (start over: npm run reset-db)`);
-      say(apiOnly ? "  Press Ctrl+C to stop." : "  Press Ctrl+C to stop both.");
+      say(apiOnly || webOnly ? "  Press Ctrl+C to stop." : "  Press Ctrl+C to stop both.");
       say("--------------------------------------------------------------");
       say();
     }
