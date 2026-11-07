@@ -4,9 +4,10 @@
 //   npm run setup      one time (safe to re-run): Python venv + packages, SQLite schema, npm packages, .env files
 //   npm run dev        starts the backend and the frontend together
 //   npm run dev:web    frontend only, for using a shared backend (no Python needed)
+//   npm run dev:api    backend only, for hosting a shared backend (no frontend, e.g. behind a Cloudflare Tunnel)
 //   npm run reset-db   throws away the local SQLite database and makes a fresh one
 //
-// Flags (after `--`): --web-only (skip everything Python), --force (reinstall packages).
+// Flags (after `--`): --web-only (skip everything Python), --api-only (skip the frontend), --force (reinstall packages).
 
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -31,6 +32,7 @@ const MIN_NODE = [20, 9];
 
 const [command, ...flags] = process.argv.slice(2);
 const webOnly = flags.includes("--web-only");
+const apiOnly = flags.includes("--api-only");
 const force = flags.includes("--force");
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -166,7 +168,7 @@ function copyIfMissing(from, to) {
 
 function ensureEnvFiles() {
   if (!webOnly) copyIfMissing(path.join(srcDir, ".env.example"), path.join(srcDir, ".env"));
-  copyIfMissing(path.join(appDir, ".env.example"), path.join(appDir, ".env.local"));
+  if (!apiOnly) copyIfMissing(path.join(appDir, ".env.example"), path.join(appDir, ".env.local"));
 }
 
 function ensureFrontendPackages() {
@@ -195,14 +197,14 @@ function prepare() {
   }
   ensureEnvFiles();
   if (!webOnly) migrateDatabase();
-  ensureFrontendPackages();
+  if (!apiOnly) ensureFrontendPackages();
 }
 
 function setup() {
   prepare();
   say();
   say("Setup complete. Start the app with:");
-  say(webOnly ? "    npm run dev:web" : "    npm run dev");
+  say(webOnly ? "    npm run dev:web" : apiOnly ? "    npm run dev:api" : "    npm run dev");
   say();
 }
 
@@ -313,7 +315,7 @@ function sharedBackendUrl() {
 async function start() {
   prepare();
   say();
-  await assertPortFree(WEB_PORT, "the website");
+  if (!apiOnly) await assertPortFree(WEB_PORT, "the website");
   if (!webOnly) await assertPortFree(API_PORT, "the API");
 
   const webUrl = `http://localhost:${WEB_PORT}`;
@@ -330,7 +332,9 @@ async function start() {
       say(`    WARNING: ${apiUrl}/health did not answer. Is NEXT_PUBLIC_API_URL in app/.env.local right, and is the backend up?`);
     }
   }
-  launch("web", "npm run dev", undefined, { cwd: appDir, shell: true, env: { ...process.env, NEXT_TELEMETRY_DISABLED: "1" } });
+  if (!apiOnly) {
+    launch("web", "npm run dev", undefined, { cwd: appDir, shell: true, env: { ...process.env, NEXT_TELEMETRY_DISABLED: "1" } });
+  }
 
   for (const sig of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) process.on(sig, () => shutdown(0));
 
@@ -339,17 +343,17 @@ async function start() {
   let announced = false;
   while (!shuttingDown && !announced && Date.now() - started < 180_000) {
     await new Promise((r) => setTimeout(r, 700));
-    const webUp = await isListening(WEB_PORT);
+    const webUp = apiOnly ? true : await isListening(WEB_PORT);
     const apiUp = webOnly ? true : await healthOk(`${apiUrl}/health`);
     if (webUp && apiUp) {
       announced = true;
       say();
       say("--------------------------------------------------------------");
       say("  Mathboard is running");
-      say(`    App       ${webUrl}`);
+      if (!apiOnly) say(`    App       ${webUrl}`);
       say(`    API       ${apiUrl}${webOnly ? "   (shared backend)" : ""}`);
       if (!webOnly) say(`    Database  ${describeDatabase()}   (start over: npm run reset-db)`);
-      say("  Press Ctrl+C to stop both.");
+      say(apiOnly ? "  Press Ctrl+C to stop." : "  Press Ctrl+C to stop both.");
       say("--------------------------------------------------------------");
       say();
     }
@@ -398,6 +402,6 @@ switch (command) {
     await resetDb();
     break;
   default:
-    say("Usage: node scripts/dev.mjs <setup|start|reset-db> [--web-only] [--force]");
+    say("Usage: node scripts/dev.mjs <setup|start|reset-db> [--web-only | --api-only] [--force]");
     process.exit(command ? 1 : 0);
 }

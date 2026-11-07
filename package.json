@@ -7,6 +7,7 @@
     "dev": "node scripts/dev.mjs start",
     "start": "node scripts/dev.mjs start",
     "dev:web": "node scripts/dev.mjs start --web-only",
+    "dev:api": "node scripts/dev.mjs start --api-only",
     "reset-db": "node scripts/dev.mjs reset-db"
   },
   "engines": {
