@@ -143,7 +143,8 @@ function ensurePythonPackages() {
     return;
   }
   step("Installing Python packages (a minute or two the first time)");
-  const r = run(venvPython, ["-m", "pip", "install", "--disable-pip-version-check", "-r", requirements], { cwd: srcDir });
+  // -q: pip prints only warnings and errors, not a line per package.
+  const r = run(venvPython, ["-m", "pip", "install", "-q", "--disable-pip-version-check", "--progress-bar", "off", "-r", requirements], { cwd: srcDir });
   if (r.status !== 0) fail("Installing the Python packages failed. The output above says why; fix it and run this again (it picks up where it left off).");
   fs.writeFileSync(marker, wanted + "\n");
 }
@@ -181,7 +182,8 @@ function ensureFrontendPackages() {
     return;
   }
   step("Installing frontend packages (a minute or two the first time)");
-  const r = runShell("npm ci --no-audit --no-fund", { cwd: appDir });
+  // error level: skips npm's notices (like the install-script one), which teammates cannot act on; real errors still show.
+  const r = runShell("npm ci --no-audit --no-fund --loglevel=error", { cwd: appDir });
   if (r.status !== 0) {
     fail("Installing the frontend packages failed (output above). If it mentions the lockfile being out of sync, try:  cd app && npm install");
   }
@@ -322,10 +324,13 @@ async function start() {
   const apiUrl = webOnly ? sharedBackendUrl() || `http://localhost:${API_PORT}` : `http://localhost:${API_PORT}`;
 
   if (!webOnly) {
-    launch("api", venvPython, ["main.py"], {
-      cwd: srcDir,
-      env: { ...process.env, PORT: String(API_PORT), HOST: "127.0.0.1", PYTHONUNBUFFERED: "1" },
-    });
+    const env = { ...process.env, PORT: String(API_PORT), HOST: "127.0.0.1", PYTHONUNBUFFERED: "1" };
+    // Everyone on one machine is one IP, so the default of 5 sign-ups per 15 minutes just gets in the way of local testing.
+    // Hosting for others (dev:api) keeps the default; anything you set yourself (shell or src/.env) wins.
+    if (!apiOnly && !process.env.SIGNUP_MAX_ATTEMPTS && !readEnvFile(path.join(srcDir, ".env"), "SIGNUP_MAX_ATTEMPTS")) {
+      env.SIGNUP_MAX_ATTEMPTS = "50";
+    }
+    launch("api", venvPython, ["main.py"], { cwd: srcDir, env });
   } else {
     step(`Frontend only. It will talk to the shared backend at ${apiUrl}`);
     if (!(await healthOk(new URL("/health", apiUrl).href))) {

@@ -37,7 +37,8 @@ that changes packages or the database schema, just run `npm run dev` again.
 
 There is nothing to configure. The database is the file `src/mathboard.db`, and the secret key that signs logins is made
 for you on first run and kept in `src/.dev_secret_key`; both are gitignored. The dev backend listens on `127.0.0.1` only,
-so it is not reachable from the network.
+so it is not reachable from the network. `npm run dev` also raises the sign-up limit to 50 per IP (the backend's own default is
+5 per 15 minutes) so testing with several accounts is not throttled; set `SIGNUP_MAX_ATTEMPTS` in `src/.env` to change it.
 
 ### Start over with an empty database
 
@@ -107,10 +108,9 @@ cd app && npm test                  # unit tests
 cd app && npm run test:e2e          # Playwright; starts the frontend itself, the backend must already be running
 ```
 
-Backend tests use a temporary SQLite file and need no services. The e2e suite signs up 16 users, and the backend allows 5
-sign-ups per IP per 15 minutes by default. Start the backend for e2e runs with `SIGNUP_MAX_ATTEMPTS=50` (the
-forgot-password test also needs `ALLOW_DEV_RESET_LINK=1`, which shows the reset link on the page instead of emailing it).
-With both set, the whole suite passes against one backend process.
+Backend tests use a temporary SQLite file and need no services. For e2e, start the app with `npm run dev` (the suite signs up
+16 users, which the raised sign-up limit allows). The forgot-password test also needs `ALLOW_DEV_RESET_LINK=1` in `src/.env`,
+which shows the reset link on the page instead of emailing it; remove it afterwards and never set it on a shared backend.
 
 ## Configuration
 
