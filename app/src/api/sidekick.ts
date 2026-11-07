@@ -109,6 +109,10 @@ export const checkWork = (steps: string[]) =>
 export const suggestNext = (steps: string[]) =>
     request<NextResult>("/sidekick/next", { method: "POST", body: JSON.stringify({ steps }) })
 
+/** A photo or screenshot of maths (already shrunk to a base64 JPEG) to LaTeX. */
+export const imageToLatex = (image: string, mimeType: string) =>
+    request<LatexResult>("/sidekick/image", { method: "POST", body: JSON.stringify({ image, mime_type: mimeType }) })
+
 export type IntoDocResult = { block_id: string; cached: boolean; mock: boolean }
 
 /** Same as textToLatex, but the Sidekick writes the answer into the live document, as a new block after `afterBlockId`. */

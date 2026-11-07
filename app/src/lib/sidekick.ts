@@ -23,7 +23,7 @@ import {
 // The sidekick's client-side state and actions. Every action starts from an explicit user gesture (a menu item, or
 // Ctrl/Cmd+Enter on an "@sidekick" line); nothing here runs on typing or on a timer.
 
-export type Working = "latex" | "explain" | "fix" | "check" | "next" | null
+export type Working = "latex" | "explain" | "fix" | "check" | "next" | "image" | null
 export type Explanation = { summary: string; steps: string[]; mock: boolean }
 /** The answer to "check my work". `stepRange` is where the flagged step is in the block, so "Use suggestion" can replace it. */
 export type CheckCard = {

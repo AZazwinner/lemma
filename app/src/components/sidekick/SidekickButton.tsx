@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useSyncExternalStore } from "react"
-import { ArrowRight, CircleAlert, Clock, Info, ListChecks, Sigma, Sparkles, Wrench, X } from "lucide-react"
+import { ArrowRight, Camera, CircleAlert, Clock, Info, ListChecks, Sigma, Sparkles, Wrench, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -19,6 +19,8 @@ import {
     subscribe,
 } from "@/lib/sidekick"
 import { applyCheckSuggestion, checkMyWork, fixLatexError, suggestNextStep } from "@/lib/sidekick-math"
+import { photoToLatex } from "@/lib/sidekick-photo"
+import { ACCEPTED_TYPES } from "@/lib/sidekick-image"
 
 // A small icon beside the collaborators' avatars. Closed until clicked; it never opens by itself and its buttons keep
 // the editor's focus (mousedown is not allowed to move it), so the writer's caret and typing are never disturbed.
@@ -27,6 +29,7 @@ const keepEditorFocus = (e: React.MouseEvent) => e.preventDefault()
 export function SidekickButton({ docId, readOnly = false }: { docId: number; readOnly?: boolean }) {
     const s = useSyncExternalStore(subscribe, getState, getServerState)
     const rootRef = useRef<HTMLDivElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         void loadStatus()
@@ -81,6 +84,21 @@ export function SidekickButton({ docId, readOnly = false }: { docId: number; rea
                 <Sparkles className={cn("h-4 w-4", working && "animate-pulse text-foreground")} />
             </Button>
 
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_TYPES.join(",")}
+                className="hidden"
+                tabIndex={-1}
+                aria-hidden
+                data-testid="sidekick-photo-input"
+                onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = "" // so choosing the same file again still counts
+                    if (file) void photoToLatex(file)
+                }}
+            />
+
             {s.menuOpen && (
                 <div
                     data-testid="sidekick-panel"
@@ -111,6 +129,13 @@ export function SidekickButton({ docId, readOnly = false }: { docId: number; rea
                                 hint={collab ? "Sidekick adds the explanation as a new block below" : "Plain language, step by step"}
                                 disabled={working}
                                 onClick={() => void explainEquation()}
+                            />
+                            <MenuItem
+                                icon={<Camera className="h-4 w-4" />}
+                                title="Photo → LaTeX"
+                                hint="Choose a picture of maths. It's shrunk in your browser first"
+                                disabled={readOnly || working}
+                                onClick={() => fileInputRef.current?.click()}
                             />
                             <GroupLabel>Math help</GroupLabel>
                             <MenuItem

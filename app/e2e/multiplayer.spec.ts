@@ -135,6 +135,7 @@ test("someone with view-only access can't make the Sidekick write", async ({ bro
         await expect(b.getByRole("button", { name: /Describe → LaTeX/ })).toBeDisabled()
         await expect(b.getByRole("button", { name: /Fix LaTeX error/ })).toBeDisabled()
         await expect(b.getByRole("button", { name: /Suggest next step/ })).toBeDisabled()
+        await expect(b.getByRole("button", { name: /Photo → LaTeX/ })).toBeDisabled()
     } finally {
         await a.context().close()
         await b.context().close()
