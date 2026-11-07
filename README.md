@@ -150,7 +150,7 @@ Click the sparkle icon beside the collaborator avatars (it stays closed until yo
 | `SIDEKICK_PROVIDER` | `openrouter` (default) or `gemini`. Without a key for the chosen provider the sidekick runs in **mock mode**. |
 | `OPENROUTER_API_KEY` | From <https://openrouter.ai/keys>. Set a spending limit on the key there: that is your real cost ceiling. |
 | `OPENROUTER_MODEL` | Default `deepseek/deepseek-v4.1-flash-1017`. Any OpenRouter model id. |
-| `SIDEKICK_REASONING` | `off` (default), `low`, `medium` or `high`. Hidden reasoning makes answers slower and is billed as output. |
+| `SIDEKICK_REASONING` | `off`, `low` (default), `medium` or `high`. Billed as output. With `off`, DeepSeek passed a wrong derivation step as correct in testing; with `low` it caught it, still in under a second. Measured with DeepSeek: Describe 1.5 s, Explain 2.1 s, Check 0.5 to 0.8 s. |
 | `GEMINI_API_KEY` | A free key from <https://aistudio.google.com/apikey>. |
 | `GEMINI_MODEL` | Gemini's text model, needed for `SIDEKICK_PROVIDER=gemini`. Measured: `gemini-3.5-flash-lite` about 1 s (500 free/day); `gemma-4-26b-a4b-it` 5 to 44 s and `gemma-4-31b-it` 26 to 78 s (14,400 free/day each). |
 | `GEMINI_VISION_MODEL` | The model that reads photos (default `GEMINI_MODEL`). `gemini-3.5-flash-lite` read a test picture correctly; Gemma models returned HTTP 500 for pictures. |

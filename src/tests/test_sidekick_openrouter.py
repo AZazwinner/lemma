@@ -127,15 +127,19 @@ def test_the_request_is_a_chat_completion_with_the_key_only_in_the_header(monkey
     assert body["model"] == config.DEFAULT_OPENROUTER_MODEL
     assert body["messages"] == [{"role": "system", "content": "system words"}, {"role": "user", "content": "user words"}]
     assert body["max_tokens"] == 123
-    assert body["reasoning"] == {"enabled": False}  # off by default: fastest, and reasoning is billed
+    # a little reasoning by default: without it DeepSeek passed a wrong derivation step as correct
+    assert body["reasoning"] == {"effort": "low", "exclude": True}
 
 
-def test_reasoning_can_be_turned_up(monkeypatch):
+def test_reasoning_can_be_turned_off_or_up(monkeypatch):
     live_openrouter(monkeypatch)
-    monkeypatch.setenv("SIDEKICK_REASONING", "low")
     seen = fake_openrouter(monkeypatch, answer("ok"))
+    monkeypatch.setenv("SIDEKICK_REASONING", "off")
     asyncio.run(openrouter.generate("s", "u", max_output_tokens=10))
-    assert body_of(seen[0])["reasoning"] == {"effort": "low", "exclude": True}
+    monkeypatch.setenv("SIDEKICK_REASONING", "high")
+    asyncio.run(openrouter.generate("s", "u", max_output_tokens=10))
+    assert body_of(seen[0])["reasoning"] == {"enabled": False}
+    assert body_of(seen[1])["reasoning"] == {"effort": "high", "exclude": True}
 
 
 def test_a_picture_is_sent_as_a_data_url(monkeypatch):

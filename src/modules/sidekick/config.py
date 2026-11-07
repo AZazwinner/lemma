@@ -14,7 +14,8 @@ PROVIDERS = ("openrouter", "gemini")
 DEFAULT_PROVIDER = "openrouter"
 DEFAULT_OPENROUTER_MODEL = "deepseek/deepseek-v4.1-flash-1017"
 REASONING_LEVELS = ("off", "low", "medium", "high")
-DEFAULT_REASONING = "off"
+# "low": with reasoning off, DeepSeek passed a wrong derivation step as correct; with "low" it caught it, still in under a second.
+DEFAULT_REASONING = "low"
 
 
 def _warn_once(name: str, message: str) -> None:
@@ -95,8 +96,8 @@ def openrouter_vision_model() -> str:
 
 
 def reasoning() -> str:
-    """How much hidden reasoning to ask an OpenRouter model for. "off" (default) is fastest; reasoning tokens are also
-    billed as output."""
+    """How much hidden reasoning to ask an OpenRouter model for: off, low (default), medium or high. Reasoning tokens are
+    billed as output, and more of them makes answers slower."""
     return _choice("SIDEKICK_REASONING", REASONING_LEVELS, DEFAULT_REASONING)
 
 
