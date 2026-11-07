@@ -66,8 +66,8 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
         const sync = () => {
             const users: PresentUser[] = []
             awareness.getStates().forEach((state, clientId) => {
-                const remoteUser = (state as { user?: { name: string; color: string } }).user
-                if (remoteUser) users.push({ clientId, name: remoteUser.name, color: remoteUser.color })
+                const remoteUser = (state as { user?: { name: string; color: string; kind?: string } }).user
+                if (remoteUser) users.push({ clientId, name: remoteUser.name, color: remoteUser.color, kind: remoteUser.kind })
             })
             onPresenceChange?.(users)
         }

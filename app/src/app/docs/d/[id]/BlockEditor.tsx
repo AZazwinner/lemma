@@ -16,6 +16,7 @@ import { MathSymbolMenu, filterMathSymbols } from "./MathSymbolMenu"
 import type { MathSymbol } from "./math-symbols"
 import { extractBlocksFromClipboardEvent } from "./blockClipboard"
 import { imageDecorations } from "./imageWidget"
+import { sidekickExtension } from "@/components/sidekick/extension"
 
 type SlashMenuState = { query: string; left: number; top: number; index: number }
 
@@ -384,6 +385,7 @@ export function BlockEditor({
         const state = EditorState.create({
             doc: text.toString(),
             extensions: [
+                sidekickExtension(id),
                 blockKeymap,
 
                 Prec.highest(keymap.of(yUndoManagerKeymap)),

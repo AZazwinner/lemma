@@ -1,12 +1,16 @@
 "use client"
 
+import { Sparkles } from "lucide-react"
 import { Tip } from "@/components/ui/tooltip"
 import { variableInitial } from "@/components/UserAvatar"
+import { cn } from "@/lib/utils"
 
 export type PresentUser = {
   clientId: number
   name: string
   color: string
+  /** "ai" for the Sidekick, which shows a sparkle instead of initials. */
+  kind?: string
 }
 
 
@@ -26,10 +30,14 @@ export function PresenceStack({ users }: { users: PresentUser[] }) {
           <div
             tabIndex={0}
             aria-label={u.name}
-            className={`${avatar} pr-px font-var text-[14px] text-white italic outline-none focus-visible:ring-2 focus-visible:ring-ring/40`}
+            className={cn(
+              avatar,
+              "text-white outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+              u.kind !== "ai" && "pr-px font-var text-[14px] italic"
+            )}
             style={{ backgroundColor: u.color }}
           >
-            {variableInitial(u.name)}
+            {u.kind === "ai" ? <Sparkles className="h-3.5 w-3.5" aria-hidden /> : variableInitial(u.name)}
           </div>
         </Tip>
       ))}
