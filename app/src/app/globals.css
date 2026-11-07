@@ -580,6 +580,15 @@
   transition: color 0.2s var(--ease);
 }
 
+/* An empty placeholder equation ($$ $$ in a template) doesn't take a number. */
+.editor-doc .katex-display:has(annotation:empty) {
+  counter-increment: none;
+}
+
+.editor-doc .katex-display:has(annotation:empty)::after {
+  content: none;
+}
+
 .editor-doc [data-block-index]:hover .katex-display::after {
   color: var(--ink);
 }
