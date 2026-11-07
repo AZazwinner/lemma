@@ -2,11 +2,10 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { AuthLayout } from "../signin/AuthLayout"
+import { UnitSpinner } from "@/components/ui/spinner"
+import { AuthCardShell, AuthField, AuthFormError, AuthHeading, AuthLayout, authLinkClass } from "../signin/AuthLayout"
 import { forgotPassword } from "@/api/signin"
 
 export default function ForgotPasswordPage() {
@@ -34,64 +33,56 @@ export default function ForgotPasswordPage() {
 
     return (
         <AuthLayout>
-            <Card className="w-full max-w-md">
-                <CardHeader className="text-center space-y-1">
-                    <CardTitle className="font-heading text-3xl font-normal">Reset your password</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                        We&apos;ll send a reset link to your email
-                    </p>
-                </CardHeader>
+            <AuthCardShell
+                footer={
+                    <Link href="/signin?mode=signin" className={authLinkClass}>
+                        Back to sign in
+                    </Link>
+                }
+            >
+                <AuthHeading title="Reset your password" subtitle={<>We&apos;ll send a reset link to your email</>} />
 
-                <CardContent className="space-y-4">
-                    {submitted ? (
-                        <div className="space-y-4">
-                            <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-                                If an account exists for <span className="font-medium text-foreground">{email}</span>,
-                                a password reset link has been sent.
-                            </div>
-
-                            {devResetLink && (
-                                <div className="space-y-2 rounded-md border border-dashed p-4 text-sm">
-                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                        Dev mode - no email provider configured
-                                    </p>
-                                    <p className="text-muted-foreground">
-                                        Use this link directly instead of checking an inbox:
-                                    </p>
-                                    <Link href={devResetLink} className="block break-all text-primary underline">
-                                        {devResetLink}
-                                    </Link>
-                                </div>
-                            )}
+                {submitted ? (
+                    <div className="mb-swap space-y-4">
+                        <div className="rounded-lg border border-hairline bg-muted p-4 text-sm text-ink-soft">
+                            If an account exists for <span className="font-medium text-ink">{email}</span>,
+                            a password reset link has been sent.
                         </div>
-                    ) : (
-                        <>
-                            <div className="space-y-2">
-                                <Label htmlFor="forgot-email">Email</Label>
-                                <Input
-                                    id="forgot-email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                                    placeholder="you@example.com"
-                                />
+
+                        {devResetLink && (
+                            <div className="space-y-2 rounded-lg border border-dashed border-hairline p-4 text-sm">
+                                <p className="text-xs font-medium text-ink-faint">
+                                    Dev mode - no email provider configured
+                                </p>
+                                <p className="text-ink-soft">
+                                    Use this link directly instead of checking an inbox:
+                                </p>
+                                <Link href={devResetLink} className={`block break-all ${authLinkClass}`}>
+                                    {devResetLink}
+                                </Link>
                             </div>
-
-                            {error && <div className="text-sm text-red-500">{error}</div>}
-
-                            <Button className="w-full py-4" onClick={handleSubmit} disabled={loading || !email.trim()}>
-                                {loading ? "Sending…" : "Send reset link"}
-                            </Button>
-                        </>
-                    )}
-
-                    <div className="text-center text-xs text-muted-foreground">
-                        <Link href="/signin?mode=signin" className="underline hover:text-foreground">
-                            Back to sign in
-                        </Link>
+                        )}
                     </div>
-                </CardContent>
-            </Card>
+                ) : (
+                    <div className="space-y-4">
+                        <AuthField
+                            id="forgot-email"
+                            label="Email"
+                            icon={Mail}
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                            placeholder="you@example.com"
+                        />
+
+                        {error && <AuthFormError>{error}</AuthFormError>}
+
+                        <Button className="mt-2 h-[42px] w-full text-sm" onClick={handleSubmit} disabled={loading || !email.trim()} aria-busy={loading}>
+                            {loading ? <><UnitSpinner /><span className="mb-swap">Sending…</span></> : "Send reset link"}
+                        </Button>
+                    </div>
+                )}
+            </AuthCardShell>
         </AuthLayout>
     )
 }

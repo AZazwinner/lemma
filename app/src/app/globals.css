@@ -10,6 +10,8 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-instrument-serif);
+  /* Document text matches the equations: KaTeX's own Computer Modern, already loaded with katex.min.css. */
+  --font-serif: "KaTeX_Main", "Latin Modern Roman", Georgia, serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,6 +41,19 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  /* App tokens, usable as Tailwind colors (bg-sheet, text-ink-faint, border-hairline...). */
+  --color-desk: var(--desk);
+  --color-sheet: var(--sheet);
+  --color-page: var(--page);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-heading: var(--heading);
+  --color-hairline: var(--hairline);
+  --color-hairline-soft: var(--hairline-soft);
+  --color-tint: var(--tint);
+  --color-pencil: var(--pencil);
+  --color-ok: var(--ok);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -48,73 +63,94 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Quiet paper: graphite desk, white interface sheets, a near-white writing page, charcoal as the one main color.
+   Red ("pencil") only ever means an error. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --desk: #eef1f3;
+  --sheet: #ffffff;
+  --page: #fcfcfa;
+  --ink: #1a1f26;
+  --ink-soft: #4f5966;
+  --ink-faint: #636c78;
+  --heading: #23272e;
+  --hairline: rgba(26, 31, 38, 0.11);
+  --hairline-soft: rgba(26, 31, 38, 0.06);
+  --tint: #eef0f2;
+  --wash: rgba(43, 48, 56, 0.1);
+  --rule: rgba(43, 48, 56, 0.14);
+  --dots: rgba(40, 60, 90, 0.1);
+  --grid: rgba(40, 70, 110, 0.07);
+  --grid-major: rgba(40, 70, 110, 0.12);
+  --pencil: #b23a3a;
+  --pencil-wash: rgba(178, 58, 58, 0.06);
+  --ok: #2e7d57;
+  --shadow-sheet: 0 1px 2px rgba(20, 30, 50, 0.06), 0 12px 32px -12px rgba(20, 30, 50, 0.22);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --pop: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  --background: var(--desk);
+  --foreground: var(--ink);
+  --card: var(--sheet);
+  --card-foreground: var(--ink);
+  --popover: var(--sheet);
+  --popover-foreground: var(--ink);
+  --primary: #2b3038;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f4f6;
+  --secondary-foreground: var(--ink);
+  --muted: #f2f4f6;
+  --muted-foreground: var(--ink-faint);
+  --accent: var(--tint);
+  --accent-foreground: var(--ink);
+  --destructive: var(--pencil);
+  --border: var(--hairline);
+  --input: var(--hairline);
+  --ring: #3a4049;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: var(--sheet);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: #2b3038;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--tint);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: #3a4049;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --desk: #15191d;
+  --sheet: #1b2025;
+  --page: #1f1e1c;
+  --ink: #e6eaee;
+  --ink-soft: #a5aeb8;
+  --ink-faint: #838d9a;
+  --heading: #eef0f3;
+  --hairline: rgba(230, 234, 238, 0.11);
+  --hairline-soft: rgba(230, 234, 238, 0.06);
+  --tint: rgba(230, 234, 238, 0.08);
+  --wash: rgba(230, 234, 238, 0.12);
+  --rule: rgba(230, 234, 238, 0.14);
+  --dots: rgba(220, 230, 240, 0.07);
+  --grid: rgba(220, 230, 240, 0.045);
+  --grid-major: rgba(220, 230, 240, 0.08);
+  --pencil: #f29191;
+  --pencil-wash: rgba(242, 145, 145, 0.08);
+  --ok: #7fc79b;
+  --shadow-sheet: 0 1px 2px rgba(0, 0, 0, 0.3), 0 14px 36px -12px rgba(0, 0, 0, 0.6);
+
+  --primary: #d9dde3;
+  --primary-foreground: #15191d;
+  --secondary: #222830;
+  --muted: #222830;
+  --ring: #c9ced6;
+  --sidebar-primary: #d9dde3;
+  --sidebar-primary-foreground: #15191d;
+  --sidebar-ring: #c9ced6;
 }
 
 @layer base {
@@ -130,28 +166,12 @@
   }
 }
 
+/* Older screens read these names; they now point at the shared tokens. */
 .paper-surface {
-  --paper: #fafaf9;
-  --paper-dim: #f1f1ef;
-  --paper-surface: #ffffff;
-  --ink: #1c1b1a;
-  --ink-soft: #6b6862;
-  --ink-faint: #9c9892;
-  --hairline: rgba(28, 27, 26, 0.1);
-  --hairline-soft: rgba(28, 27, 26, 0.06);
-  --pen: #1c1b1a;
-}
-
-.dark .paper-surface {
-  --paper: #18181b;
-  --paper-dim: #151517;
-  --paper-surface: #201f22;
-  --ink: #efeeec;
-  --ink-soft: #a7a29b;
-  --ink-faint: #716c65;
-  --hairline: rgba(255, 255, 255, 0.1);
-  --hairline-soft: rgba(255, 255, 255, 0.06);
-  --pen: #efeeec;
+  --paper: var(--desk);
+  --paper-dim: var(--muted);
+  --paper-surface: var(--sheet);
+  --pen: var(--primary);
 }
 
 .scrollbar-custom {
@@ -175,4 +195,462 @@
 
 .scrollbar-custom::-webkit-scrollbar-thumb:hover {
   background-color: var(--muted-foreground);
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Collaborator initials are set as italic variables. */
+.font-var {
+  font-family: "KaTeX_Math", "Latin Modern Math", Georgia, serif;
+}
+
+/* ---------- Motion pieces shared by every screen ---------- */
+
+/* The main button: a thin wave draws once under the label on hover, then rests. */
+[data-slot="button"][data-variant="default"] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+[data-slot="button"][data-variant="default"]::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 3px;
+  height: 6px;
+  background: currentColor;
+  opacity: 0;
+  z-index: -1;
+  pointer-events: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='6' viewBox='0 0 40 6'%3E%3Cpath d='M0 3 Q5 0 10 3 T20 3 T30 3 T40 3' fill='none' stroke='black' stroke-width='1.2'/%3E%3C/svg%3E") repeat-x 0 0 / 40px 6px;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='6' viewBox='0 0 40 6'%3E%3Cpath d='M0 3 Q5 0 10 3 T20 3 T30 3 T40 3' fill='none' stroke='black' stroke-width='1.2'/%3E%3C/svg%3E") repeat-x 0 0 / 40px 6px;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.55s var(--ease), opacity 0.2s var(--ease);
+}
+
+[data-slot="button"][data-variant="default"]:not(:disabled):hover::after,
+[data-slot="button"][data-variant="default"]:focus-visible::after {
+  opacity: 0.35;
+  clip-path: inset(0 0 0 0);
+}
+
+[data-slot="button"][aria-busy="true"]::after {
+  opacity: 0 !important;
+}
+
+/* Press ripple, started by PressRipple.tsx from the point of contact. */
+.mb-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.2;
+  transform: scale(0);
+  animation: mb-ripple 0.6s var(--ease) forwards;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes mb-ripple {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* Unit-circle spinner: a radius sweeps the circle. */
+.mb-unit .mb-unit-r {
+  transform-origin: 8px 8px;
+  animation: mb-sweep 1.1s linear infinite;
+}
+
+@keyframes mb-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A check that draws itself. */
+.mb-check path {
+  stroke-dasharray: 16;
+  stroke-dashoffset: 16;
+  animation: mb-draw 0.45s 0.05s var(--ease) forwards;
+}
+
+@keyframes mb-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Small text swaps (button labels, status) arrive from just below. */
+.mb-swap {
+  animation: mb-swap 0.25s var(--ease);
+}
+
+@keyframes mb-swap {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.mb-shake {
+  animation: mb-shake 0.35s var(--ease);
+}
+
+@keyframes mb-shake {
+  20% {
+    transform: translateX(-4px);
+  }
+  45% {
+    transform: translateX(3px);
+  }
+  70% {
+    transform: translateX(-2px);
+  }
+}
+
+.mb-flash {
+  background-image: linear-gradient(90deg, transparent, var(--wash), transparent);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: mb-flash 0.7s var(--ease);
+}
+
+@keyframes mb-flash {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+/* Icon buttons: each icon has its own small motion, chosen with data-anim. */
+[data-anim] svg {
+  transition: transform 0.3s var(--ease);
+}
+
+[data-anim="lift"]:hover svg {
+  transform: translateY(-1px) scale(1.08);
+}
+
+[data-anim="back"]:hover svg {
+  transform: translateX(-3px);
+}
+
+[data-anim="turn"]:hover svg {
+  transform: rotate(-35deg);
+}
+
+[data-anim="drop"]:hover svg:not(.mb-unit):not(.mb-check) {
+  animation: mb-drop 0.6s var(--ease);
+}
+
+[data-anim="tilt"]:hover svg {
+  animation: mb-tilt 0.45s var(--ease);
+}
+
+@keyframes mb-drop {
+  40% {
+    transform: translateY(3px);
+  }
+  70% {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes mb-tilt {
+  30% {
+    transform: rotate(-10deg);
+  }
+  65% {
+    transform: rotate(7deg);
+  }
+}
+
+/* Menus and popovers open from their trigger with a little spring; items arrive one after another. */
+[data-slot="dropdown-menu-content"][data-state="open"] > [data-slot="dropdown-menu-item"] {
+  animation: mb-item 0.22s var(--ease) backwards;
+}
+
+[data-slot="dropdown-menu-content"][data-state="open"] > [data-slot="dropdown-menu-item"]:nth-child(2) { animation-delay: 28ms; }
+[data-slot="dropdown-menu-content"][data-state="open"] > [data-slot="dropdown-menu-item"]:nth-child(3) { animation-delay: 56ms; }
+[data-slot="dropdown-menu-content"][data-state="open"] > [data-slot="dropdown-menu-item"]:nth-child(4) { animation-delay: 84ms; }
+[data-slot="dropdown-menu-content"][data-state="open"] > [data-slot="dropdown-menu-item"]:nth-child(5) { animation-delay: 112ms; }
+[data-slot="dropdown-menu-content"][data-state="open"] > [data-slot="dropdown-menu-item"]:nth-child(n + 6) { animation-delay: 140ms; }
+
+@keyframes mb-item {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+[data-slot="dropdown-menu-item"] svg {
+  transition: transform 0.25s var(--ease);
+}
+
+[data-slot="dropdown-menu-item"]:hover svg,
+[data-slot="dropdown-menu-item"][data-highlighted] svg {
+  transform: translateX(2px);
+}
+
+/* ---------- Sign in ---------- */
+
+.auth-grid {
+  background-color: var(--desk);
+  background-image:
+    linear-gradient(to right, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+  background-position: -1px -1px;
+}
+
+.auth-caret {
+  position: relative;
+  display: inline-block;
+  width: 2px;
+  height: 1.15em;
+  margin-left: 1px;
+  vertical-align: -0.2em;
+  background: var(--primary);
+}
+
+.auth-flag {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  padding: 1px 5px;
+  border-radius: 3px 3px 3px 0;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.auth-render .katex-display {
+  margin: 0;
+  text-align: left;
+}
+
+.auth-render .katex-display > .katex {
+  text-align: left;
+}
+
+/* A field's focus line draws out from the middle. */
+.mb-field {
+  position: relative;
+}
+
+.mb-field::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary);
+  transform: scaleX(0);
+  transition: transform 0.3s var(--ease);
+  pointer-events: none;
+}
+
+.mb-field:focus-within::after {
+  transform: scaleX(1);
+}
+
+.mb-field > svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  translate: 0 -50%;
+  color: var(--ink-faint);
+  pointer-events: none;
+  transition: color 0.15s var(--ease), scale 0.3s var(--pop);
+}
+
+.mb-field:focus-within > svg {
+  color: var(--ink);
+  scale: 1.1;
+}
+
+/* ---------- Documents list ---------- */
+
+.mb-leader {
+  flex: 1;
+  min-width: 24px;
+  margin: 0 10px;
+  border-bottom: 1px dotted var(--hairline);
+  transform: translateY(-4px);
+  transition: border-color 0.2s var(--ease);
+}
+
+.group\/row:hover .mb-leader {
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+}
+
+.mb-empty-set line {
+  stroke-dasharray: 32;
+  animation: mb-slash 0.6s 0.1s var(--ease) backwards;
+}
+
+@keyframes mb-slash {
+  from {
+    stroke-dashoffset: 32;
+  }
+}
+
+/* ---------- Editor page ---------- */
+
+.editor-desk {
+  background-color: var(--desk);
+  background-image: radial-gradient(var(--dots) 1px, transparent 1.2px);
+  background-size: 20px 20px;
+  background-position: 10px 10px;
+}
+
+.editor-sheet {
+  --margin: 56px;
+  --gutter: 60px;
+  position: relative;
+  background: var(--page);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(20, 30, 50, 0.04), 0 18px 40px -24px rgba(20, 30, 50, 0.25);
+  padding: 48px var(--gutter) 64px var(--margin);
+}
+
+/* The margin rule belongs to the page, so it never runs past its edges. */
+.editor-sheet::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--margin) - 12px);
+  border-left: 1px solid var(--rule);
+  pointer-events: none;
+}
+
+.editor-sheet::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: var(--gutter);
+  border-left: 1px solid var(--hairline-soft);
+  pointer-events: none;
+}
+
+.editor-doc {
+  counter-reset: eq;
+}
+
+/* Display equations number themselves in the right margin. Visual only. */
+.editor-doc .katex-display {
+  position: relative;
+  counter-increment: eq;
+}
+
+.editor-doc .katex-display::after {
+  content: "(" counter(eq) ")";
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  right: calc(-2.5rem - var(--gutter));
+  width: var(--gutter);
+  text-align: center;
+  font-family: "KaTeX_Main", Georgia, serif;
+  font-size: 15px;
+  color: var(--ink-faint);
+  transition: color 0.2s var(--ease);
+}
+
+.editor-doc [data-block-index]:hover .katex-display::after {
+  color: var(--ink);
+}
+
+/* Each block shows its kind in the left margin on hover or while it's edited. */
+.editor-doc [data-mark]::before {
+  content: attr(data-mark);
+  position: absolute;
+  top: 10px;
+  left: calc(-1 * var(--margin) + 10px);
+  width: 24px;
+  text-align: center;
+  font-family: "KaTeX_Main", Georgia, serif;
+  font-size: 15px;
+  color: var(--ink-soft);
+  opacity: 0;
+  transform: translateX(4px);
+  transition: opacity 0.15s var(--ease), transform 0.2s var(--ease);
+  pointer-events: none;
+}
+
+.editor-doc [data-mark]:hover::before,
+.editor-doc [data-mark]:focus-within::before {
+  opacity: 1;
+  transform: none;
+}
+
+/* An equation that won't compile is marked in red pencil. */
+.editor-doc .katex-error {
+  color: var(--pencil) !important;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.875em;
+  background: var(--pencil-wash);
+  border-bottom: 1px dashed var(--pencil);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+@media (max-width: 640px) {
+  .editor-sheet {
+    --margin: 20px;
+    --gutter: 0px;
+    padding: 28px 8px 40px 20px;
+  }
+
+  .editor-sheet::after,
+  .editor-doc .katex-display::after,
+  .editor-doc [data-mark]::before {
+    display: none;
+  }
+}
+
+@media print {
+  .editor-sheet::before,
+  .editor-sheet::after,
+  .editor-doc .katex-display::after,
+  .editor-doc [data-mark]::before {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .mb-unit .mb-unit-r {
+    animation: none;
+  }
 }
