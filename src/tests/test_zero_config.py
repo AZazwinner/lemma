@@ -64,3 +64,13 @@ def test_secret_keys_differ_between_machines(tmp_path):
 def test_unwritable_key_file_fails_with_a_clear_message(tmp_path):
     with pytest.raises(RuntimeError, match="set SECRET_KEY"):
         load_secret_key("", tmp_path / "missing-folder" / "key")
+
+
+def test_the_suite_ignores_the_developers_env_file(tmp_path):
+    """conftest neutralises load_dotenv, so a real src/.env (SMTP settings, ALLOW_DEV_RESET_LINK...) cannot change test behaviour."""
+    from dotenv import load_dotenv
+
+    env_file = tmp_path / ".env"
+    env_file.write_text("MB_TEST_SENTINEL=leaked\n")
+    load_dotenv(env_file)
+    assert "MB_TEST_SENTINEL" not in os.environ

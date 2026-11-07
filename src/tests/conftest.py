@@ -2,8 +2,13 @@ import os
 import tempfile
 from pathlib import Path
 
+import dotenv
 import pytest
 from sqlalchemy.engine import make_url
+
+# The app calls load_dotenv() when its modules are imported. The suite must not read a developer's src/.env: it would put
+# back variables this file clears below (real SMTP settings, ALLOW_DEV_RESET_LINK, ...) and change what the tests do.
+dotenv.load_dotenv = lambda *args, **kwargs: False
 
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
