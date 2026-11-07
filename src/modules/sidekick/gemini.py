@@ -8,24 +8,11 @@ deliberately not logged or passed on: only the HTTP status is.
 import re
 
 from modules.sidekick import config
+from modules.sidekick.errors import DEFAULT_RETRY_AFTER, ModelBusy, ModelError
 
-DEFAULT_RETRY_AFTER = 30
-
-
-class GeminiBusy(Exception):
-    """Google said the quota or rate limit is used up (HTTP 429)."""
-
-    def __init__(self, retry_after: int = DEFAULT_RETRY_AFTER):
-        super().__init__("busy")
-        self.retry_after = retry_after
-
-
-class GeminiError(Exception):
-    """Any other failure talking to Google: network, bad key, server error, empty answer."""
-
-    def __init__(self, reason: str):
-        super().__init__(reason)
-        self.reason = reason
+# The same exceptions every provider raises, under the names this module has always used.
+GeminiBusy = ModelBusy
+GeminiError = ModelError
 
 
 _client = None

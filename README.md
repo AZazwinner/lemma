@@ -128,9 +128,10 @@ them.
 
 ## Sidekick (AI helper)
 
-An optional helper, built on the Google Gemini API (free tier). It only runs when a user asks it to, never while typing, and
-nothing it suggests goes into the document unless you accept it (Tab or a click; Esc dismisses). The API key lives in
-`src/.env` on the backend and is never sent to the browser or logged.
+An optional AI helper. By default it uses **DeepSeek through OpenRouter** (paid per token); **Google Gemini** (free tier)
+is built in too: it reads photos whenever it is set up, and `SIDEKICK_PROVIDER=gemini` makes it answer everything. It only
+runs when a user asks it to, never while typing, and nothing it suggests goes into the document unless you accept it (Tab or
+a click; Esc dismisses). API keys live in `src/.env` on the backend and are never sent to the browser or logged.
 
 Click the sparkle icon beside the collaborator avatars (it stays closed until you do):
 
@@ -146,29 +147,34 @@ Click the sparkle icon beside the collaborator avatars (it stays closed until yo
 
 | Variable (in `src/.env`) | Meaning |
 |---|---|
-| `GEMINI_API_KEY` | A key from <https://aistudio.google.com/apikey>. Without one, the sidekick runs in **mock mode**. |
-| `GEMINI_MODEL` | Required with a key. Pick the model with the most free requests per day at <https://aistudio.google.com/rate-limit>. |
-| `GEMINI_VISION_MODEL` | Optional, for reading photos. Defaults to `GEMINI_MODEL`. In testing, the Gemma models answered image requests with HTTP 500, while a Gemini Flash Lite model read a picture correctly, so set this to one of those if Photo → LaTeX fails. |
-| `GEMINI_THINKING_LEVEL` | Optional (`minimal`, `low`...). Cuts the tokens a thinking model spends. Unset sends nothing. |
+| `SIDEKICK_PROVIDER` | `openrouter` (default) or `gemini`. Without a key for the chosen provider the sidekick runs in **mock mode**. |
+| `OPENROUTER_API_KEY` | From <https://openrouter.ai/keys>. Set a spending limit on the key there: that is your real cost ceiling. |
+| `OPENROUTER_MODEL` | Default `deepseek/deepseek-v4.1-flash-1017`. Any OpenRouter model id. |
+| `SIDEKICK_REASONING` | `off` (default), `low`, `medium` or `high`. Hidden reasoning makes answers slower and is billed as output. |
+| `GEMINI_API_KEY` | A free key from <https://aistudio.google.com/apikey>. |
+| `GEMINI_MODEL` | Gemini's text model, needed for `SIDEKICK_PROVIDER=gemini`. Measured: `gemini-3.5-flash-lite` about 1 s (500 free/day); `gemma-4-26b-a4b-it` 5 to 44 s and `gemma-4-31b-it` 26 to 78 s (14,400 free/day each). |
+| `GEMINI_VISION_MODEL` | The model that reads photos (default `GEMINI_MODEL`). `gemini-3.5-flash-lite` read a test picture correctly; Gemma models returned HTTP 500 for pictures. |
+| `SIDEKICK_VISION_PROVIDER` | Who reads photos. Default: Gemini when its key and a model are set, otherwise `SIDEKICK_PROVIDER`. |
+| `GEMINI_THINKING_LEVEL` | Optional, Gemini only (`minimal`, `low`...). Unset sends nothing. |
 | `SIDEKICK_MOCK` | `1` forces mock mode even with a key; `0` switches the sidekick off when there is no key. |
 | `SIDEKICK_USER_PER_MINUTE` | Requests one user can make per minute (default 5). |
-| `SIDEKICK_DAILY_BUDGET` | Real API requests per day, all users together (default 200). Keep it below your model's free daily limit. |
+| `SIDEKICK_DAILY_BUDGET` | Real requests per day, all users together (default 200). On Gemini's free tier keep it under the model's daily limit; on OpenRouter it caps spending. |
 | `SIDEKICK_CACHE_SECONDS` | How long an identical request is answered from memory (default 300). |
-| `SIDEKICK_TIMEOUT_SECONDS` | How long to wait for Google (default 100, at most 120). In testing, `gemma-4-31b-it` took 26 to 78 seconds per answer because it reasons before answering; `gemma-4-26b-a4b-it` (same free daily limit) took 5 to 13 seconds. |
+| `SIDEKICK_TIMEOUT_SECONDS` | How long to wait for an answer (default 100, at most 120). |
 
 **Mock mode** returns canned answers and makes no API calls, so you can build UI without spending quota. In mock mode, text
 containing `__busy__` returns the "busy, try again" response and `__error__` returns the generic error, to test those states.
 For Check my work, `__ok__` in the steps means "every step follows"; for Suggest next step, `__done__` means "finished".
 
-**Quota.** The free tier is small, so the backend protects it: a per-user limit, a daily budget counted per Pacific day
+**Quota and cost.** The backend protects the free tier and your credit alike: a per-user limit, a daily budget counted per Pacific day
 (Google's quota resets at midnight Pacific; the count is kept in the gitignored `src/.sidekick_usage` so a restart doesn't
-reset it), identical requests answered from a cache and never sent twice at once, and a pause after Google answers 429.
-A request Google rejects with an error (for example HTTP 503) is handed back to the budget; a 429 or a timeout stays counted,
-because Google may have done the work.
+reset it), identical requests answered from a cache and never sent twice at once, and a pause after the provider answers 429.
+A request the provider rejects with an error (for example HTTP 503, or 402 for no credit) is handed back to the budget; a 429
+or a timeout stays counted, because the provider may have done (and billed) the work.
 `GET /sidekick/status` (signed in) shows `used_today` against `daily_budget`, and each real request logs `sidekick: n/budget today`.
 The Docker files don't pass the Sidekick variables through; add them to the compose `environment` if you deploy that way.
 
-**Tests.** The backend tests and the Sidekick Playwright specs never call Google. The specs expect canned answers, so they
+**Tests.** The backend tests and the Sidekick Playwright specs never call a real provider. The specs expect canned answers, so they
 skip themselves unless the backend runs with `SIDEKICK_MOCK=1` (set it in your shell or `src/.env` for the e2e run, then
 set it back).
 

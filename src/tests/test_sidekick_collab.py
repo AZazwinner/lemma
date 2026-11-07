@@ -6,7 +6,7 @@ import pytest
 
 from db.modules.docs.models import DocumentBlock
 from db.modules.liveshare.backfill import BLOCKS_KEY
-from modules.sidekick import collab, config, mock, service
+from modules.sidekick import collab, config, gemini, mock, service
 from tests.test_docs_permissions import auth, create_doc, signup
 from tests.test_liveshare_ws import connect, share
 
@@ -14,7 +14,10 @@ from tests.test_liveshare_ws import connect, share
 @pytest.fixture(autouse=True)
 def clean_sidekick(monkeypatch, tmp_path):
     """Mock mode (no key), an empty usage file, and no leftover presence from another test."""
-    for name in ("GEMINI_API_KEY", "GEMINI_MODEL", "SIDEKICK_MOCK", "SIDEKICK_USER_PER_MINUTE", "SIDEKICK_DAILY_BUDGET"):
+    for name in (
+        "GEMINI_API_KEY", "GEMINI_MODEL", "SIDEKICK_MOCK", "SIDEKICK_USER_PER_MINUTE", "SIDEKICK_DAILY_BUDGET",
+        "SIDEKICK_PROVIDER", "SIDEKICK_VISION_PROVIDER", "OPENROUTER_API_KEY", "OPENROUTER_MODEL",
+    ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("SIDEKICK_USAGE_FILE", str(tmp_path / "usage.json"))
     monkeypatch.setattr(mock, "MOCK_DELAY", 0)
@@ -190,11 +193,12 @@ def test_a_failure_after_the_sidekick_started_removes_it_again(client, owner, mo
     monkeypatch.setenv("GEMINI_API_KEY", "k")
     monkeypatch.setenv("GEMINI_MODEL", "m")
     monkeypatch.setenv("SIDEKICK_MOCK", "0")
+    monkeypatch.setenv("SIDEKICK_PROVIDER", "gemini")
 
     async def failing(system, contents, *, max_output_tokens, vision=False):
-        raise service.gemini.GeminiError("HTTP 500")
+        raise gemini.GeminiError("HTTP 500")
 
-    monkeypatch.setattr(service.gemini, "generate", failing)
+    monkeypatch.setattr(gemini, "generate", failing)
 
     with connect(client, doc_id, owner_token) as ws:
         watcher = Watcher(ws)

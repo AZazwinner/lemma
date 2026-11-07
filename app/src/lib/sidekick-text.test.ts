@@ -96,6 +96,7 @@ describe("noticeFor", () => {
         expect(noticeFor("upstream", undefined, "HTTP 504").text).toContain("too long")
         expect(noticeFor("upstream", undefined, "HTTP 503").text).toContain("HTTP 503")
         expect(noticeFor("upstream", undefined, "HTTP 404").text).toContain("rejected")
+        expect(noticeFor("upstream", undefined, "HTTP 402").text).toContain("out of credit")
         expect(noticeFor("upstream", undefined, "output limit").text).toContain("ran out of room")
         expect(noticeFor("upstream", undefined, "empty answer").text).toContain("no answer")
         expect(noticeFor("upstream", undefined, "something else entirely").text).toBe("The sidekick couldn't answer. Try again.")

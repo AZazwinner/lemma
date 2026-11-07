@@ -16,6 +16,8 @@ def clean_sidekick(monkeypatch, tmp_path):
     for name in (
         "GEMINI_API_KEY", "GEMINI_MODEL", "GEMINI_VISION_MODEL", "GEMINI_THINKING_LEVEL",
         "SIDEKICK_MOCK", "SIDEKICK_USER_PER_MINUTE", "SIDEKICK_DAILY_BUDGET", "SIDEKICK_CACHE_SECONDS",
+        "SIDEKICK_PROVIDER", "SIDEKICK_VISION_PROVIDER", "SIDEKICK_REASONING", "SIDEKICK_TIMEOUT_SECONDS",
+        "OPENROUTER_API_KEY", "OPENROUTER_MODEL", "OPENROUTER_VISION_MODEL",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("SIDEKICK_USAGE_FILE", str(tmp_path / "usage.json"))
@@ -41,6 +43,8 @@ def token(client):
 
 
 def go_live(monkeypatch):
+    """Live mode on Gemini, so these tests can replace gemini.generate. OpenRouter has its own tests."""
+    monkeypatch.setenv("SIDEKICK_PROVIDER", "gemini")
     monkeypatch.setenv("GEMINI_API_KEY", SECRET)
     monkeypatch.setenv("GEMINI_MODEL", "some-model")
     monkeypatch.setenv("SIDEKICK_MOCK", "0")
@@ -171,6 +175,7 @@ def test_no_key_means_mock_mode():
 
 
 def test_mock_can_be_forced_even_with_a_key(monkeypatch):
+    monkeypatch.setenv("SIDEKICK_PROVIDER", "gemini")
     monkeypatch.setenv("GEMINI_API_KEY", SECRET)
     monkeypatch.setenv("GEMINI_MODEL", "m")
     monkeypatch.setenv("SIDEKICK_MOCK", "1")
@@ -178,6 +183,7 @@ def test_mock_can_be_forced_even_with_a_key(monkeypatch):
 
 
 def test_a_key_without_a_model_is_disabled_not_guessed(monkeypatch):
+    monkeypatch.setenv("SIDEKICK_PROVIDER", "gemini")
     monkeypatch.setenv("GEMINI_API_KEY", SECRET)
     assert config.mode() == "disabled"
     assert "GEMINI_MODEL" in config.disabled_reason()

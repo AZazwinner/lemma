@@ -78,12 +78,13 @@ export function previewOf(latex: string, max = 90): string {
 
 export type Notice = { kind: "busy" | "error" | "info"; text: string; retryAfter?: number }
 
-/** What to tell the writer when Google failed, from the short reason the backend gives ("HTTP 504", "HTTP 503", ...). */
+/** What to tell the writer when the AI provider failed, from the short reason the backend gives ("HTTP 504", "HTTP 503", ...). */
 function upstreamText(reason?: string): string {
     const status = reason?.match(/^HTTP (\d{3})$/)?.[1]
-    if (status === "504") return "Google took too long to answer. Try again, or pick a faster model."
-    if (status && status.startsWith("5")) return `Google had a problem (HTTP ${status}). Try again in a moment.`
-    if (status) return `Google rejected the request (HTTP ${status}). Check the model and key on the server.`
+    if (status === "504") return "The AI service took too long to answer. Try again, or pick a faster model."
+    if (status === "402") return "The AI account is out of credit. Top it up, or switch provider on the server."
+    if (status && status.startsWith("5")) return `The AI service had a problem (HTTP ${status}). Try again in a moment.`
+    if (status) return `The AI service rejected the request (HTTP ${status}). Check the model and key on the server.`
     if (reason === "output limit") return "The model ran out of room while thinking. Try again, or pick a faster model."
     if (reason === "empty answer") return "The model gave no answer. Try again."
     return "The sidekick couldn't answer. Try again."

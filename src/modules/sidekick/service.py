@@ -3,7 +3,8 @@ import hashlib
 import re
 import time
 
-from modules.sidekick import config, gemini, mock, prompts
+from modules.sidekick import config, llm, mock, prompts
+from modules.sidekick.errors import ModelBusy, ModelError
 from modules.sidekick.limits import SlidingWindowLimiter, TTLCache
 from modules.sidekick.usage import seconds_until_reset, usage
 
@@ -17,7 +18,7 @@ class SidekickDisabled(Exception):
 
 
 class SidekickBusy(Exception):
-    """Too many requests (this user, the daily budget, or Google's own limit). `retry_after` is in whole seconds."""
+    """Too many requests (this user, the daily budget, or the provider's own limit). `retry_after` is in whole seconds."""
 
     def __init__(self, retry_after: float, reason: str):
         super().__init__(reason)
@@ -26,7 +27,7 @@ class SidekickBusy(Exception):
 
 
 class SidekickUpstreamError(Exception):
-    """Google (or the answer) failed. `reason` is a short, safe description such as "HTTP 503": never Google's own message."""
+    """The provider (or its answer) failed. `reason` is a short, safe description such as "HTTP 503": never the provider's own message."""
 
     def __init__(self, reason: str = ""):
         super().__init__(reason)
@@ -37,7 +38,7 @@ user_limiter = SlidingWindowLimiter(window=60.0)
 cache = TTLCache(max_entries=256)
 _inflight: dict[str, "asyncio.Future[str]"] = {}
 
-# After Google says 429, stop sending anything until its retry hint has passed.
+# After the provider says 429, stop sending anything until its retry hint has passed.
 _cooldown_until = 0.0
 
 
@@ -111,14 +112,14 @@ async def _run(
             else:
                 system, max_tokens = prompts.SYSTEM[feature]
                 extra = {"image": image} if image is not None else {}
-                answer = await gemini.generate(system, prompt or prompts.wrap_input(text), max_output_tokens=max_tokens, **extra)
-        except gemini.GeminiBusy as e:
+                answer = await llm.generate(system, prompt or prompts.wrap_input(text), max_output_tokens=max_tokens, **extra)
+        except ModelBusy as e:
             _cooldown_until = time.monotonic() + e.retry_after
-            raise SidekickBusy(e.retry_after, "Google quota") from None
-        except gemini.GeminiError as e:
+            raise SidekickBusy(e.retry_after, "provider quota") from None
+        except ModelError as e:
             print(f"sidekick: {feature} failed: {e.reason}")
-            # Google answered with an error status, so it didn't do the work: hand the request back. A timeout (504)
-            # is different, since Google may well have finished it, and it stays counted.
+            # The provider answered with an error status, so it didn't do the work: hand the request back. A timeout
+            # (504) is different, since it may well have finished (and billed) it, so it stays counted.
             if current_mode == "live" and e.reason.startswith("HTTP ") and e.reason != "HTTP 504":
                 usage.refund()
             raise SidekickUpstreamError(e.reason) from None
