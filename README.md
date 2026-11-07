@@ -7,66 +7,124 @@ A collaborative LaTeX editor that renders as you type. Write math like it's a do
 - Slash commands, formatting toolbar, templates, export to PDF, Markdown, HTML or text
 - Sharing with read/write permissions, version history, trash
 
-**Stack:** Next.js (`app/`), FastAPI (`src/`), Yjs via pycrdt for conflict-free editing, PostgreSQL with Alembic migrations.
+**Stack:** Next.js (`app/`), FastAPI (`src/`), Yjs via pycrdt for conflict-free editing, SQLite locally (PostgreSQL in Docker
+or on a server), Alembic migrations.
 
-## Run it
+## Quick start (no Docker)
 
-You need Docker. From a fresh clone:
-
-```
-docker compose up --build
-```
-
-Open <http://localhost:12000>. The API is on <http://localhost:12001>. Postgres and migrations are handled for you,
-and the dev defaults (database password, `SECRET_KEY`) are for local use only. Both ports are published on `127.0.0.1`
-only, so other devices on your network cannot reach them (use the Cloudflare Tunnel below to share an instance).
-
-### Working on the frontend with hot reload
-
-Run the backend in Docker and the frontend directly:
+**You need:** Git, Python 3.11 or newer, and Node 20.9 or newer. That is all: no Docker and no database server.
+It was developed and tested on Windows with Python 3.14 and Node 24; the commands are the same in PowerShell, cmd,
+macOS and Linux.
 
 ```
-docker compose up --build backend
-cd app && cp .env.example .env.local && npm ci && npm run dev
+git clone https://github.com/AZazwinner/mathlatex.git
+cd mathlatex
+npm run setup
+npm run dev
 ```
 
-### Working on the backend without Docker
+Then open **<http://localhost:12000>**, create an account and make a document. Press `Ctrl+C` to stop everything.
 
-You need Python 3.14 (what the Docker image and CI use) and a database. SQLite is fine for solo work; use Postgres to match everyone else.
+`npm run setup` takes a few minutes the first time. It:
+
+- creates a Python environment in `src/venv` and installs `src/requirements.txt`;
+- installs the frontend packages in `app/`;
+- creates `src/.env` and `app/.env.local` from the `.env.example` files, only if they do not exist yet;
+- creates the SQLite database `src/mathboard.db`.
+
+It is safe to re-run and skips whatever is already done. `npm run dev` does the same checks first, so after a `git pull`
+that changes packages or the database schema, just run `npm run dev` again.
+
+There is nothing to configure. The database is the file `src/mathboard.db`, and the secret key that signs logins is made
+for you on first run and kept in `src/.dev_secret_key`; both are gitignored. The dev backend listens on `127.0.0.1` only,
+so it is not reachable from the network.
+
+### Start over with an empty database
+
+Stop the app, then:
 
 ```
-cd src
-python -m venv venv && source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env                                    # set SECRET_KEY, and DATABASE_URL=sqlite:///./mathboard.db for SQLite
-alembic upgrade head                                    # the app does not create tables itself
-python main.py
+npm run reset-db
 ```
+
+This deletes every local account and document and creates a fresh database.
+
+### Other commands
+
+| Command | What it does |
+|---|---|
+| `npm run dev:web` | frontend only, to use a [shared backend](#use-a-shared-backend) (needs no Python) |
+| `npm run dev:api` | backend only, to [host a shared backend](#running-the-backend-behind-a-cloudflare-tunnel) |
+| `npm run setup -- --force` | reinstall the Python and frontend packages |
+
+### If something goes wrong
+
+| You see | Do this |
+|---|---|
+| `Python 3.11 or newer was not found` | install Python from <https://www.python.org/downloads/> (on Windows tick "Add python.exe to PATH"), then open a **new** terminal |
+| `Port 12000 ... is already in use` (or 12001) | the app is already running in another terminal; stop it |
+| `src/venv ... does not run` | delete the `src/venv` folder and run `npm run setup` again |
+| `Could not create the Python environment` on Debian/Ubuntu | `sudo apt install python3-venv` |
+| `Installing the frontend packages failed` | `cd app && npm install`, then `npm run dev` |
+
+## Use a shared backend
+
+To test multiplayer together without everyone running a backend, one teammate hosts it (see
+[Running the backend behind a Cloudflare Tunnel](#running-the-backend-behind-a-cloudflare-tunnel)) and the others point their
+frontend at it.
+
+1. Get the backend's URL from the team, for example `https://api.example.com`.
+2. In `app/.env.local` (made by `npm run setup`) set both lines. Use `wss://` when the URL is `https://`:
+
+   ```
+   NEXT_PUBLIC_API_URL=https://api.example.com
+   NEXT_PUBLIC_WS_URL=wss://api.example.com
+   ```
+
+3. Run `npm run setup -- --web-only` once (skips Python), then `npm run dev:web`. It prints a warning if the backend does not
+   answer.
+4. Sign up in the app. Accounts and documents live on the host's machine, not yours. Sign in as different users in two
+   browsers, share a document, and edit it together.
+
+Things to know:
+
+- Restart `npm run dev:web` after editing `app/.env.local`; the values are read at startup.
+- Keep the frontend on `http://localhost:12000`, because the backend always allows that address. Any other address (another
+  port, a Vercel URL) has to be added to the host's `CORS_ORIGINS`.
+- To go back to your own backend, restore the two `localhost` lines (`http://localhost:12001` and `ws://localhost:12001`) and
+  run `npm run dev`. A login from the other backend is not valid on this one, so sign in again if the app bounces you.
 
 ## Tests
 
 ```
-cd src && pip install -r requirements-dev.txt && pytest     # SQLite by default, no services needed
-cd app && npm test                                          # unit tests
-cd app && npm run test:e2e                                  # Playwright; starts the frontend itself, the backend must already be running
+# backend. One-time: add the test tools to the environment `npm run setup` made.
+cd src
+venv/bin/pip install -r requirements-dev.txt && venv/bin/pytest            # macOS / Linux
+venv\Scripts\pip install -r requirements-dev.txt; venv\Scripts\pytest      # Windows PowerShell
+
+# frontend
+cd app && npm test                  # unit tests
+cd app && npm run test:e2e          # Playwright; starts the frontend itself, the backend must already be running
 ```
 
-The suite signs up 16 users, and the backend allows 5 sign-ups per IP per 15 minutes by default. Start the backend for
-e2e runs with `SIGNUP_MAX_ATTEMPTS=50` (the forgot-password test also needs `ALLOW_DEV_RESET_LINK=1`, which shows the
-reset link on the page instead of emailing it). With both set, the whole suite passes against one backend process.
+Backend tests use a temporary SQLite file and need no services. The e2e suite signs up 16 users, and the backend allows 5
+sign-ups per IP per 15 minutes by default. Start the backend for e2e runs with `SIGNUP_MAX_ATTEMPTS=50` (the
+forgot-password test also needs `ALLOW_DEV_RESET_LINK=1`, which shows the reset link on the page instead of emailing it).
+With both set, the whole suite passes against one backend process.
 
 ## Configuration
 
-Everything has a working default for local development. Copy the relevant `.env.example` and uncomment what you change:
+Everything has a working default for local development; you only need these to change something. Copy the relevant
+`.env.example` and uncomment what you change. Never commit a real `.env`.
 
 | File | For | Variables |
 |---|---|---|
-| [`.env.example`](.env.example) | `docker compose` | `POSTGRES_PASSWORD`, `SECRET_KEY`, `CORS_ORIGINS`, `APP_URL`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`, `NEXT_PUBLIC_APP_URL`, `WS_ACCEPT_LOGIN_TOKEN`, `FORWARDED_ALLOW_IPS`, `SIGNUP_MAX_ATTEMPTS` |
-| [`src/.env.example`](src/.env.example) | backend run directly | `SECRET_KEY` (required), `DATABASE_URL` (required), `PORT`, `APP_URL`, `CORS_ORIGINS`, `WS_ACCEPT_LOGIN_TOKEN`, `FORWARDED_ALLOW_IPS`, `SIGNUP_MAX_ATTEMPTS`, optional `SMTP_*` for password-reset email |
-| [`app/.env.example`](app/.env.example) | frontend run directly | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`, `NEXT_PUBLIC_APP_URL` |
+| [`src/.env.example`](src/.env.example) | the backend (`npm run dev`) | all optional: `SECRET_KEY`, `DATABASE_URL`, `PORT`, `HOST`, `APP_URL`, `CORS_ORIGINS`, `WS_ACCEPT_LOGIN_TOKEN`, `FORWARDED_ALLOW_IPS`, `SIGNUP_MAX_ATTEMPTS`, `SMTP_*` for password-reset email |
+| [`app/.env.example`](app/.env.example) | the frontend | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`, `NEXT_PUBLIC_APP_URL` |
+| [`.env.example`](.env.example) | `docker compose` | `POSTGRES_PASSWORD`, `SECRET_KEY`, `CORS_ORIGINS`, `APP_URL`, the three `NEXT_PUBLIC_*`, `WS_ACCEPT_LOGIN_TOKEN`, `FORWARDED_ALLOW_IPS`, `SIGNUP_MAX_ATTEMPTS` |
 
-The three `NEXT_PUBLIC_*` values are baked into the frontend at build time: rebuild (or redeploy) after changing them.
-Never commit a real `.env`.
+The three `NEXT_PUBLIC_*` values are baked into the frontend when it starts or is built: restart (or rebuild) after changing
+them.
 
 ## Running the backend behind a Cloudflare Tunnel
 
@@ -75,6 +133,10 @@ For a shared or demo instance: the backend runs on one machine, a Cloudflare Tun
 `http://localhost:12000`. This section does not create or change the tunnel. It only needs the backend listening on
 a port.
 
+**Host the backend.** On the machine that runs it, run `npm run setup -- --api-only` once, then `npm run dev:api`. That starts
+only the backend, on `127.0.0.1:12001`, which is what `cloudflared` connects to. Put the settings below in `src/.env` first.
+Teammates then follow [Use a shared backend](#use-a-shared-backend).
+
 **Point the tunnel at the backend's port.** The ingress target is `http://localhost:12001`, or whatever `PORT` is
 set to. WebSockets pass through a tunnel without extra settings. The tunnel terminates HTTPS, so the backend itself
 stays plain HTTP.
@@ -82,7 +144,7 @@ stays plain HTTP.
 **Backend settings** (in `src/.env`, or the root `.env` for Docker):
 
 ```
-SECRET_KEY=<openssl rand -hex 32>          # never the default on a public instance
+SECRET_KEY=<openssl rand -hex 32>          # optional outside Docker (a random key is made and kept in src/.dev_secret_key); in Docker, never the default
 CORS_ORIGINS=https://my-app.vercel.app     # the FRONTEND's origin, exactly: scheme + host (+ port), no trailing slash
 APP_URL=https://my-app.vercel.app          # the frontend again; used in password-reset links
 WS_ACCEPT_LOGIN_TOKEN=0                    # WebSockets accept only short-lived tickets
@@ -98,21 +160,23 @@ NEXT_PUBLIC_WS_URL=wss://api.example.com   # wss, not ws: an https page cannot o
 NEXT_PUBLIC_APP_URL=https://my-app.vercel.app
 ```
 
-Several people can use a frontend at `http://localhost:12000` against the same tunnelled backend, because that origin
-is always allowed. A frontend on any other local port (say `http://localhost:3000`) has to be added to
+Teammates running their own frontend at `http://localhost:12000` against the tunnelled backend need no extra setting, because
+that origin is always allowed. A frontend on any other local port (say `http://localhost:3000`) has to be added to
 `CORS_ORIGINS`: `CORS_ORIGINS=https://my-app.vercel.app,http://localhost:3000`.
 
 **Real client IPs.** Sign-up is limited to 5 per IP per 15 minutes (raise it with `SIGNUP_MAX_ATTEMPTS`, for example
 for a demo), and repeated failed sign-ins lock that IP and username out for 15 minutes. The backend reads the visitor's IP from the `X-Forwarded-For` header that Cloudflare
 sets, but only from peers it trusts, and by default that is `127.0.0.1`.
 
-- Backend run directly on the same machine as `cloudflared` (`python main.py`): nothing to do.
+- Backend run directly on the same machine as `cloudflared` (`npm run dev:api`): nothing to do.
 - Backend in Docker: its connections arrive from Docker's gateway, not `127.0.0.1`, so every visitor would look like one
   machine and the sixth sign-up in 15 minutes would be refused for everyone. Set `FORWARDED_ALLOW_IPS=*`. That is safe
   with the supplied `docker-compose.yml`, which publishes the port on `127.0.0.1` only; if you open the port up, don't
   use `*`, because anyone who can reach it could forge their IP.
 
-**Check it from outside.** Run these from another network (a phone hotspot is fine), not from the host itself.
+**Check it from outside.** Run these from another network (a phone hotspot is fine), not from the host itself. They are
+written for a bash-style shell: Git Bash (installed with Git for Windows), macOS or Linux. In PowerShell, write `curl.exe`
+instead of `curl`, and run check 4 in Git Bash.
 
 ```
 # 1. HTTP. Expect {"status":"ok"}
@@ -162,3 +226,16 @@ If something is off:
 
 Login tokens are sent in an `Authorization` header and the WebSocket uses a one-minute ticket, so no cookies are
 shared between the frontend and the backend and there are no `SameSite` or `Secure` settings to configure.
+
+## Docker (optional)
+
+If you would rather run everything in containers, with PostgreSQL instead of SQLite:
+
+```
+docker compose up --build
+```
+
+Open <http://localhost:12000>; the API is on <http://localhost:12001>. Postgres and migrations are handled for you, and the
+dev defaults (database password, `SECRET_KEY`) are for local use only. Both ports are published on `127.0.0.1` only, so
+other devices on your network cannot reach them (use the Cloudflare Tunnel above to share an instance). To change settings,
+copy the root `.env.example` to `.env`.
