@@ -126,6 +126,32 @@ Everything has a working default for local development; you only need these to c
 The three `NEXT_PUBLIC_*` values are baked into the frontend when it starts or is built: restart (or rebuild) after changing
 them.
 
+## Sidekick (AI helper)
+
+An optional helper that turns a description into LaTeX and explains an equation step by step, using the Google Gemini API
+(free tier). It only runs when a user asks it to, never while typing. The API key lives in `src/.env` on the backend and is
+never sent to the browser or logged.
+
+| Variable (in `src/.env`) | Meaning |
+|---|---|
+| `GEMINI_API_KEY` | A key from <https://aistudio.google.com/apikey>. Without one, the sidekick runs in **mock mode**. |
+| `GEMINI_MODEL` | Required with a key. Pick the model with the most free requests per day at <https://aistudio.google.com/rate-limit>. |
+| `GEMINI_VISION_MODEL` | Optional, for reading photos. Defaults to `GEMINI_MODEL`. |
+| `GEMINI_THINKING_LEVEL` | Optional (`minimal`, `low`...). Cuts the tokens a thinking model spends. Unset sends nothing. |
+| `SIDEKICK_MOCK` | `1` forces mock mode even with a key; `0` switches the sidekick off when there is no key. |
+| `SIDEKICK_USER_PER_MINUTE` | Requests one user can make per minute (default 5). |
+| `SIDEKICK_DAILY_BUDGET` | Real API requests per day, all users together (default 200). Keep it below your model's free daily limit. |
+| `SIDEKICK_CACHE_SECONDS` | How long an identical request is answered from memory (default 300). |
+
+**Mock mode** returns canned answers and makes no API calls, so you can build UI without spending quota. In mock mode, text
+containing `__busy__` returns the "busy, try again" response and `__error__` returns the generic error, to test those states.
+
+**Quota.** The free tier is small, so the backend protects it: a per-user limit, a daily budget counted per Pacific day
+(Google's quota resets at midnight Pacific; the count is kept in the gitignored `src/.sidekick_usage` so a restart doesn't
+reset it), identical requests answered from a cache and never sent twice at once, and a pause after Google answers 429.
+`GET /sidekick/status` (signed in) shows `used_today` against `daily_budget`, and each real request logs `sidekick: n/budget today`.
+The Docker files don't pass the Sidekick variables through; add them to the compose `environment` if you deploy that way.
+
 ## Running the backend behind a Cloudflare Tunnel
 
 For a shared or demo instance: the backend runs on one machine, a Cloudflare Tunnel (`cloudflared`) exposes it at
