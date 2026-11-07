@@ -50,7 +50,7 @@ def fake_generate(monkeypatch, answers=None, error=None):
     """Replaces the Gemini call. Returns the list of prompts it was asked."""
     calls = []
 
-    async def generate(system, contents, *, max_output_tokens, vision=False):
+    async def generate(system, contents, *, max_output_tokens, vision=False, image=None):
         calls.append(contents)
         if error is not None:
             raise error

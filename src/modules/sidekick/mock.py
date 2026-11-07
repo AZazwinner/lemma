@@ -26,6 +26,7 @@ _EXPLAIN = (
     "3. Substitute the values you know and simplify."
 )
 
+_IMAGE = "x^2 + 2x + 1 = (x + 1)^2"
 _FIX = "LATEX: \\frac{1}{2}\nWHY: The fraction was missing a closing brace."
 _CHECK_OK = "VERDICT: OK\nWHY: Every step follows from the one before."
 _CHECK_WRONG = (
@@ -40,6 +41,8 @@ _NEXT_DONE = "NEXT: DONE\nWHY: The answer is already reached."
 async def mock_generate(feature: str, text: str) -> str:
     if MOCK_DELAY:
         await asyncio.sleep(MOCK_DELAY)
+    if feature == "image":
+        return _IMAGE
     if feature == "fix":
         return _FIX
     if feature == "check":

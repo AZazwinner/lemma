@@ -7,7 +7,7 @@ from modules.sidekick import config, gemini, mock, prompts
 from modules.sidekick.limits import SlidingWindowLimiter, TTLCache
 from modules.sidekick.usage import seconds_until_reset, usage
 
-FEATURES = ["latex", "explain", "fix", "check", "next"]
+FEATURES = ["latex", "explain", "fix", "check", "next", "image"]
 
 
 class SidekickDisabled(Exception):
@@ -54,7 +54,9 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-async def _run(feature: str, user_id: int, text: str, on_working=None, prompt: str | None = None) -> tuple[str, bool]:
+async def _run(
+    feature: str, user_id: int, text: str, on_working=None, prompt: str | None = None, image: tuple[bytes, str] | None = None
+) -> tuple[str, bool]:
     """Returns (raw model answer, served_without_a_new_request). Raises SidekickDisabled, SidekickBusy or SidekickUpstreamError.
 
     `on_working()` is called once the request has passed every limit and is about to go to the model (never for a cached answer), so a caller can show that the sidekick has started. `text` identifies the request (cache key); `prompt` is what the model is shown, defaulting to `text` in <input> tags."""
@@ -104,7 +106,8 @@ async def _run(feature: str, user_id: int, text: str, on_working=None, prompt: s
                 answer = await mock.mock_generate(feature, text)
             else:
                 system, max_tokens = prompts.SYSTEM[feature]
-                answer = await gemini.generate(system, prompt or prompts.wrap_input(text), max_output_tokens=max_tokens)
+                extra = {"image": image} if image is not None else {}
+                answer = await gemini.generate(system, prompt or prompts.wrap_input(text), max_output_tokens=max_tokens, **extra)
         except gemini.GeminiBusy as e:
             _cooldown_until = time.monotonic() + e.retry_after
             raise SidekickBusy(e.retry_after, "Google quota") from None
@@ -175,6 +178,33 @@ async def explain(user_id: int, latex: str, on_working=None) -> tuple[str, list[
     if not summary and not steps:
         raise SidekickUpstreamError("empty explanation")
     return summary, steps, from_cache
+
+
+IMAGE_MIME_TYPES = ("image/jpeg", "image/png", "image/webp")
+# The browser shrinks a photo to well under this before sending (HTTP bodies are capped at 1 MiB in body_limit.py).
+MAX_IMAGE_BYTES = 600 * 1024
+
+
+def image_kind(data: bytes) -> str | None:
+    """The image type a file really is, from its first bytes, or None if it is none of the supported ones."""
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+async def image_to_latex(user_id: int, data: bytes, mime_type: str, on_working=None) -> tuple[str, bool]:
+    """Transcribes a photo or screenshot of maths. The caller has already checked that `data` is a real image of `mime_type` and small enough."""
+    # The cache key is the picture itself (a hash), so the same photo sent twice is answered once.
+    digest = hashlib.sha256(data).hexdigest()
+    answer, from_cache = await _run("image", user_id, f"{mime_type}:{digest}", on_working, prompts.IMAGE_PROMPT, (data, mime_type))
+    latex = clean_latex(answer)
+    if not latex:
+        raise SidekickUpstreamError("empty transcription")
+    return latex, from_cache
 
 
 def parse_fields(raw: str, keys: tuple[str, ...]) -> dict[str, str]:

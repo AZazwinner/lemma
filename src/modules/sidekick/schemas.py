@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 MAX_TEXT_CHARS = 2000
@@ -102,3 +104,12 @@ class NextResponse(BaseModel):
     why: str
     cached: bool
     mock: bool
+
+
+# Base64 of the largest photo the server accepts (600 KiB), plus a little slack.
+MAX_IMAGE_BASE64_CHARS = 820_000
+
+
+class ImageRequest(BaseModel):
+    image: str = Field(min_length=1, max_length=MAX_IMAGE_BASE64_CHARS)
+    mime_type: Literal["image/jpeg", "image/png", "image/webp"]

@@ -1,3 +1,6 @@
+import base64
+import binascii
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from db.modules.users.schemas import UserPrivateResponse
@@ -9,6 +12,7 @@ from modules.sidekick.schemas import (
     ExplainResponse,
     FixRequest,
     FixResponse,
+    ImageRequest,
     IntoDocResponse,
     LatexIntoDocRequest,
     LatexRequest,
@@ -57,6 +61,24 @@ async def sidekick_explain(data: ExplainRequest, current_user: UserPrivateRespon
     except _HANDLED as e:
         raise _translate(e) from None
     return {"summary": summary, "steps": steps, "cached": cached, "mock": config.mode() == "mock"}
+
+
+@router.post("/image", response_model=LatexResponse)
+async def sidekick_image(data: ImageRequest, current_user: UserPrivateResponse = Depends(get_current_user)):
+    """Photo or screenshot of maths to LaTeX. The image is checked here, before it can use any quota."""
+    try:
+        raw = base64.b64decode(data.image, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(422, detail={"code": "bad_image", "message": "That isn't a readable image."}) from None
+    if len(raw) > service.MAX_IMAGE_BYTES:
+        raise HTTPException(422, detail={"code": "image_too_large", "message": "That image is too large."})
+    if service.image_kind(raw) != data.mime_type:
+        raise HTTPException(422, detail={"code": "bad_image", "message": "That isn't a readable image."})
+    try:
+        latex, cached = await service.image_to_latex(current_user.id, raw, data.mime_type)
+    except _HANDLED as e:
+        raise _translate(e) from None
+    return {"latex": latex, "cached": cached, "mock": config.mode() == "mock"}
 
 
 @router.post("/fix", response_model=FixResponse)

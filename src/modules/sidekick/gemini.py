@@ -55,14 +55,16 @@ def _retry_after_from(error) -> int:
     return DEFAULT_RETRY_AFTER
 
 
-async def generate(system: str, contents, *, max_output_tokens: int, vision: bool = False) -> str:
-    """One generate_content call. `contents` is a string, or a list for image input."""
+async def generate(
+    system: str, contents, *, max_output_tokens: int, vision: bool = False, image: tuple[bytes, str] | None = None
+) -> str:
+    """One generate_content call. `image` is (bytes, mime type) to send a picture along with the text in `contents`; it uses GEMINI_VISION_MODEL (which falls back to GEMINI_MODEL) when `vision` is set."""
     try:
         from google.genai import errors, types
     except ImportError as e:
         raise GeminiError("google-genai is not installed") from e
 
-    model = config.vision_model() if vision else config.model()
+    model = config.vision_model() if (vision or image) else config.model()
     cfg = {
         "system_instruction": system,
         "max_output_tokens": max_output_tokens,
@@ -72,6 +74,8 @@ async def generate(system: str, contents, *, max_output_tokens: int, vision: boo
             retry_options=types.HttpRetryOptions(attempts=1),
         ),
     }
+    if image is not None:
+        contents = [types.Part.from_bytes(data=image[0], mime_type=image[1]), contents]
     level = config.thinking_level()
     try:
         if level:
