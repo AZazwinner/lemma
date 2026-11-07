@@ -100,5 +100,11 @@ async def generate(
     except Exception:
         text = ""
     if not text:
-        raise GeminiError("empty answer")
+        # A model that reasons before answering spends its output allowance on the reasoning (max_output_tokens counts
+        # it), and can run out before writing a word. Say so, since "no answer" would hide the real cause.
+        try:
+            finished_because = str(response.candidates[0].finish_reason)
+        except Exception:
+            finished_because = ""
+        raise GeminiError("output limit" if "MAX_TOKENS" in finished_because else "empty answer")
     return text

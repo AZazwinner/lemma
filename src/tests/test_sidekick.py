@@ -456,8 +456,27 @@ def test_an_empty_answer_is_an_error(monkeypatch):
     go_live(monkeypatch)
     empty = type("R", (), {"text": None})()
     monkeypatch.setattr(gemini, "_get_client", lambda: FakeClient(empty))
-    with pytest.raises(gemini.GeminiError):
+    with pytest.raises(gemini.GeminiError) as caught:
         asyncio.run(gemini.generate("sys", "hi", max_output_tokens=10))
+    assert caught.value.reason == "empty answer"
+
+
+def test_a_model_that_spent_its_whole_allowance_thinking_is_named_as_such(monkeypatch):
+    """Seen with a real reasoning model: 2,045 of 2,048 output tokens went on thoughts, so no text was written."""
+    go_live(monkeypatch)
+    candidate = type("C", (), {"finish_reason": "FinishReason.MAX_TOKENS"})()
+    ran_out = type("R", (), {"text": None, "candidates": [candidate]})()
+    monkeypatch.setattr(gemini, "_get_client", lambda: FakeClient(ran_out))
+    with pytest.raises(gemini.GeminiError) as caught:
+        asyncio.run(gemini.generate("sys", "hi", max_output_tokens=10))
+    assert caught.value.reason == "output limit"
+
+
+def test_every_feature_leaves_room_for_a_model_to_think():
+    from modules.sidekick import prompts
+
+    for feature, (_, allowance) in prompts.SYSTEM.items():
+        assert allowance >= 4096, feature
 
 
 def test_the_call_uses_the_configured_model_one_attempt_and_no_thinking_by_default(monkeypatch):

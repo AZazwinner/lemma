@@ -84,6 +84,8 @@ function upstreamText(reason?: string): string {
     if (status === "504") return "Google took too long to answer. Try again, or pick a faster model."
     if (status && status.startsWith("5")) return `Google had a problem (HTTP ${status}). Try again in a moment.`
     if (status) return `Google rejected the request (HTTP ${status}). Check the model and key on the server.`
+    if (reason === "output limit") return "The model ran out of room while thinking. Try again, or pick a faster model."
+    if (reason === "empty answer") return "The model gave no answer. Try again."
     return "The sidekick couldn't answer. Try again."
 }
 

@@ -55,14 +55,16 @@ IMAGE_SYSTEM = (
 )
 IMAGE_PROMPT = "Transcribe the mathematics in this image as LaTeX."
 
-# feature -> (system prompt, max output tokens). Output tokens include any hidden reasoning a model does.
+# feature -> (system prompt, max output tokens). The allowance includes any hidden reasoning a model does first. A model
+# that thinks (gemma-4-26b-a4b-it used 2,045 tokens of thought on a one-line Explain) needs room for it AND the answer;
+# one that doesn't think only ever uses the few hundred tokens the answer takes, so a generous limit costs nothing.
 SYSTEM = {
-    "latex": (LATEX_SYSTEM, 1024),
-    "explain": (EXPLAIN_SYSTEM, 2048),
-    "fix": (FIX_SYSTEM, 1024),
-    "check": (CHECK_SYSTEM, 1536),
-    "next": (NEXT_SYSTEM, 1024),
-    "image": (IMAGE_SYSTEM, 2048),
+    "latex": (LATEX_SYSTEM, 4096),
+    "explain": (EXPLAIN_SYSTEM, 8192),
+    "fix": (FIX_SYSTEM, 4096),
+    "check": (CHECK_SYSTEM, 6144),
+    "next": (NEXT_SYSTEM, 4096),
+    "image": (IMAGE_SYSTEM, 6144),
 }
 
 
