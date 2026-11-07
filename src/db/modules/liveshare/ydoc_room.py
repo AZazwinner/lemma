@@ -7,8 +7,6 @@ import anyio
 import pycrdt
 from fastapi import WebSocket
 
-import metrics
-
 from db.coordination import (
     KIND_AWARENESS,
     KIND_HELLO,
@@ -128,7 +126,6 @@ class YRoom:
 
     async def add_socket(self, websocket: WebSocket) -> None:
         self.sockets.add(websocket)
-        metrics.websocket_connects.inc()
 
         await websocket.send_bytes(pycrdt.create_sync_message(self.ydoc))
 
@@ -165,7 +162,6 @@ class YRoom:
 
 
         await self.broadcast(raw_message, sender)
-        metrics.document_updates.labels("local").inc(len(updates))
         for update in updates:
             if self.bus is not None:
                 self._publish_queue.put_nowait(update)
@@ -183,7 +179,6 @@ class YRoom:
             self.ydoc.apply_update(update)
         finally:
             changes, self._capture = self._capture, None
-        metrics.document_updates.labels("external").inc(len(changes))
         for change in changes:
             self._spawn(self.broadcast(pycrdt.create_update_message(change), None))
 
@@ -219,7 +214,6 @@ class YRoom:
         try:
             await self.bus.publish_awareness(self.doc_id, self.uid, kind, update)
         except Exception as e:
-            metrics.bus_errors.labels("awareness").inc()
             print(f"liveshare: awareness publish failed for doc {self.doc_id}: {e}")
 
     def _on_bus_awareness(self, data: bytes) -> None:
@@ -257,7 +251,6 @@ class YRoom:
             except asyncio.CancelledError:
                 raise
             except Exception as e:
-                metrics.bus_errors.labels("awareness").inc()
                 print(f"liveshare: awareness subscribe failed for doc {self.doc_id}: {e}")
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, RETRY_BACKOFF_MAX_SECONDS)
@@ -270,7 +263,6 @@ class YRoom:
             except asyncio.CancelledError:
                 raise
             except Exception as e:
-                metrics.bus_errors.labels("publish").inc()
                 print(f"liveshare: update publish failed for doc {self.doc_id}, other replicas will catch up via the database: {e}")
             finally:
                 self._publish_queue.task_done()
@@ -284,7 +276,6 @@ class YRoom:
             except asyncio.CancelledError:
                 raise
             except Exception as e:
-                metrics.bus_errors.labels("consume").inc()
                 print(f"liveshare: stream read failed for doc {self.doc_id}: {e}")
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, RETRY_BACKOFF_MAX_SECONDS)
@@ -356,12 +347,7 @@ class YRoom:
             now = time.time()
             self._last_save_time = now
 
-            try:
-                with metrics.flush_seconds.time():
-                    result = await run_in_db(write_snapshot, self.doc_id, state, applied_stream_id, snapshot)
-            except Exception:
-                metrics.flush_errors.inc()
-                raise
+            result = await run_in_db(write_snapshot, self.doc_id, state, applied_stream_id, snapshot)
 
             if result.prior_state is not None and result.prior_state != self._last_db_state:
                 self.apply_external(result.prior_state)
@@ -371,7 +357,6 @@ class YRoom:
                 try:
                     await self.bus.trim_stream(self.doc_id, result.stream_id)
                 except Exception as e:
-                    metrics.bus_errors.labels("trim").inc()
                     print(f"liveshare: stream trim failed for doc {self.doc_id}: {e}")
 
             if snapshot and now - self._last_snapshot_time > MIN_SNAPSHOT_GAP_SECONDS:
