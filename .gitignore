@@ -219,3 +219,6 @@ __marimo__/
 
 # Local backend state: random dev SECRET_KEY made on first run (see src/db/core/auth/utils/token.py)
 src/.dev_secret_key
+
+# Sidekick: today's request count, so a backend restart doesn't reset the daily budget (see src/modules/sidekick/usage.py)
+src/.sidekick_usage

@@ -1,5 +1,6 @@
 import type { ComponentType } from "react"
 import { Code, FunctionSquare, Heading, Sigma, Table, Text } from "lucide-react"
+import { SIDEKICK_SLASH_COMMANDS } from "@/components/sidekick/slash"
 
 export type SlashCommand = {
     id: string
@@ -60,4 +61,5 @@ export const SLASH_COMMANDS: SlashCommand[] = [
         template: "| Header 1 | Header 2 | Header 3 |\n| --- | --- | --- |\n| Cell | Cell | Cell |",
         cursorOffset: 2,
     },
+    ...SIDEKICK_SLASH_COMMANDS,
 ]
