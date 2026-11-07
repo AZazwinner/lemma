@@ -131,7 +131,10 @@ def clean_latex(raw: str) -> str:
     text = re.sub(r"\n?```$", "", text).strip()
     for left, right in (("$$", "$$"), ("\\[", "\\]"), ("\\(", "\\)"), ("$", "$")):
         if text.startswith(left) and text.endswith(right) and len(text) >= len(left) + len(right):
-            text = text[len(left) : len(text) - len(right)].strip()
+            inner = text[len(left) : len(text) - len(right)].strip()
+            if left == "$" and "$" in inner:
+                continue
+            text = inner
             break
     return text
 

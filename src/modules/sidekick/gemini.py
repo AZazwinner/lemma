@@ -74,12 +74,16 @@ async def generate(system: str, contents, *, max_output_tokens: int, vision: boo
         ),
     }
     level = config.thinking_level()
-    if level:
-        cfg["thinking_config"] = types.ThinkingConfig(thinking_level=level)
+    try:
+        if level:
+            cfg["thinking_config"] = types.ThinkingConfig(thinking_level=level)
+        request_config = types.GenerateContentConfig(**cfg)
+    except Exception:
+        raise GeminiError("invalid GEMINI_THINKING_LEVEL") from None
 
     try:
         response = await _get_client().aio.models.generate_content(
-            model=model, contents=contents, config=types.GenerateContentConfig(**cfg)
+            model=model, contents=contents, config=request_config
         )
     except errors.APIError as e:
         if e.code == 429:
