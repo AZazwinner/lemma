@@ -1,7 +1,7 @@
-"""Live editing must keep working with no Valkey, or with a Valkey that is unreachable.
+"""Live editing must keep working with no Valkey, or with a Valkey that is unreachable, and several rooms for one
+document must merge through the database without losing edits. None of these tests needs a Valkey server.
 
-Moved out of the old multi-replica suite so the fallback path (rooms reconciling through the database)
-stays covered after that suite was removed.
+Moved out of the old multi-replica suite so these paths stay covered after that suite was removed.
 """
 import asyncio
 import sys
@@ -9,6 +9,7 @@ import sys
 import pycrdt
 import pytest
 
+from db.modules.docs.models import DocumentBlock
 from db.modules.liveshare import ydoc_room
 from db.modules.liveshare.backfill import BLOCKS_KEY, ydoc_blocks
 from db.modules.liveshare.ydoc_room import RoomRegistry
@@ -84,6 +85,35 @@ def manual_flushes(monkeypatch):
     monkeypatch.setattr(ydoc_room.YRoom, "maybe_flush_on_interval", lambda self: None)
 
 
+def test_flushing_merges_instead_of_overwriting(doc_id, db_session):
+    """The original bug: with two replicas, whichever flushed last replaced the other's edits."""
+    async def scenario():
+        a, b = RoomRegistry(None), RoomRegistry(None)
+        try:
+            room_a, room_b = await a.get_or_create(doc_id), await b.get_or_create(doc_id)
+            sock_a, sock_b = FakeSocket(), FakeSocket()
+            await room_a.add_socket(sock_a)
+            await room_b.add_socket(sock_b)
+
+            await room_a.handle_sync(new_block_update("edit-a", "from a"), sock_a)
+            await room_b.handle_sync(new_block_update("edit-b", "from b"), sock_b)
+
+            await room_a.flush()
+            await room_b.flush()
+
+            stored = {row.id for row in db_session.query(DocumentBlock).filter(DocumentBlock.doc_id == doc_id)}
+            assert {"edit-a", "edit-b"} <= stored
+
+            await room_a.flush()
+            assert "edit-b" in block_ids(room_a.ydoc)
+            assert await wait_until(lambda: "edit-b" in blocks_seen_by(sock_a))
+            assert block_ids(room_a.ydoc) == block_ids(room_b.ydoc)
+        finally:
+            await shutdown_all(a, b)
+
+    asyncio.run(scenario())
+
+
 def test_replicas_converge_through_the_database_when_valkey_is_absent(doc_id, monkeypatch):
     monkeypatch.setattr(ydoc_room, "RECONCILE_SECONDS", 0.2)
 
@@ -150,3 +180,26 @@ def test_rooms_run_without_a_bus_when_the_valkey_package_is_not_installed(doc_id
             await shutdown_all(registry)
 
     asyncio.run(scenario())
+
+
+def test_a_registry_can_be_reused_on_a_new_event_loop_after_shutdown():
+    """The production registry is a module-level singleton, so it can outlive an event loop (tests start a new one per client). An asyncio.Lock that has ever been contended is bound to that loop; if shutdown left it behind, the next loop's first contention on the same document id raised "bound to a different event loop", intermittently, depending on timing."""
+    registry = RoomRegistry(bus_url=None)
+
+    async def contend_for_a_document():
+        lock = registry._lock_for(1)
+
+        async def holder():
+            async with lock:
+                await asyncio.sleep(0.05)
+
+        async def waiter():
+            await asyncio.sleep(0.01)
+            async with lock:
+                pass
+
+        await asyncio.gather(holder(), waiter())
+        await registry.shutdown()
+
+    asyncio.run(contend_for_a_document())
+    asyncio.run(contend_for_a_document())
