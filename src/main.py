@@ -63,4 +63,6 @@ def main():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 12001))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+    # Exactly one process, on purpose: live-editing rooms and rate-limit counters live in this process's memory.
+    # Without workers=1, uvicorn would take a worker count from the WEB_CONCURRENCY environment variable.
+    uvicorn.run("main:app", host="0.0.0.0", port=port, workers=1, reload=False)
