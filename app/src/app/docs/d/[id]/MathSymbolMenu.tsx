@@ -34,7 +34,7 @@ export function MathSymbolMenu({
     return (
         <div
             style={{ left, top }}
-            className="fixed z-50 mt-1 w-56 overflow-hidden rounded-md border bg-popover py-1 text-popover-foreground shadow-md"
+            className="fixed z-50 mt-1 w-56 overflow-hidden rounded-xl border border-hairline bg-popover p-1 text-popover-foreground shadow-[var(--shadow-sheet)] animate-in fade-in-0 zoom-in-95 duration-150"
 
             onMouseDown={(e) => e.preventDefault()}
         >
@@ -47,8 +47,8 @@ export function MathSymbolMenu({
                         type="button"
                         onMouseEnter={() => onHover(i)}
                         onClick={() => onSelect(item)}
-                        className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm ${
-                            i === activeIndex ? "bg-accent text-accent-foreground" : ""
+                        className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors ${
+                            i === activeIndex ? "bg-tint text-ink" : ""
                         }`}
                     >
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted font-serif text-[15px] leading-none">

@@ -1,6 +1,8 @@
 "use client"
 
 import { useRef } from "react"
+import katex from "katex"
+import { Tip } from "@/components/ui/tooltip"
 import type { EditorView } from "@codemirror/view"
 import { Bold, Code, Divide, FunctionSquare, Grid3x3, Heading, Image as ImageIcon, Italic, Sigma, SquareCode, Strikethrough, Table } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -24,6 +26,8 @@ import {
 type ToolbarAction = {
     label: string
     icon: React.ComponentType<{ className?: string }>
+    /** Math actions show the symbol they insert, typeset, instead of an icon. */
+    glyph?: string
     run: (view: EditorView) => void
     isActive?: (view: EditorView) => boolean
 }
@@ -39,11 +43,23 @@ const TEXT_ACTIONS: ToolbarAction[] = [
 ]
 
 const MATH_ACTIONS: ToolbarAction[] = [
-    { label: "Inline math", icon: Sigma, run: (view) => insertInlineMath(view), isActive: (view) => isWrapped(view, "$") },
-    { label: "Block equation", icon: FunctionSquare, run: (view) => insertBlockMath(view) },
-    { label: "Fraction", icon: Divide, run: (view) => insertFraction(view) },
-    { label: "Matrix", icon: Grid3x3, run: (view) => insertMatrix(view) },
+    { label: "Inline math", icon: Sigma, glyph: "x", run: (view) => insertInlineMath(view), isActive: (view) => isWrapped(view, "$") },
+    { label: "Block equation", icon: FunctionSquare, glyph: String.raw`\textstyle\sum`, run: (view) => insertBlockMath(view) },
+    { label: "Fraction", icon: Divide, glyph: String.raw`\frac{a}{b}`, run: (view) => insertFraction(view) },
+    { label: "Matrix", icon: Grid3x3, glyph: String.raw`\left[\begin{smallmatrix}a&b\\c&d\end{smallmatrix}\right]`, run: (view) => insertMatrix(view) },
 ]
+
+const glyphCache = new Map<string, string>()
+function glyphHtml(tex: string): string | null {
+    if (!glyphCache.has(tex)) {
+        try {
+            glyphCache.set(tex, katex.renderToString(tex, { throwOnError: true }))
+        } catch {
+            return null
+        }
+    }
+    return glyphCache.get(tex) ?? null
+}
 
 function ToolbarButton({
     action,
@@ -59,24 +75,32 @@ function ToolbarButton({
 
     const isDisabled = disabled || !activeView
     const isActive = !isDisabled && activeView ? Boolean(action.isActive?.(activeView)) : false
-    const { label, icon: Icon, run } = action
+    const { label, icon: Icon, run, glyph } = action
+    const glyphMarkup = glyph ? glyphHtml(glyph) : null
 
     return (
+        <Tip label={label}>
         <Button
             type="button"
             variant="ghost"
             size="icon"
-            title={label}
+            data-anim={glyphMarkup ? undefined : "lift"}
             aria-label={label}
             aria-pressed={isActive}
             disabled={isDisabled}
 
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => activeView && run(activeView)}
-            className={cn(isActive && "bg-accent text-accent-foreground")}
+            className={cn(
+                "text-ink-soft hover:text-ink",
+                glyphMarkup && "min-w-9 px-1.5 [&_.katex]:inline-block [&_.katex]:transition-transform [&_.katex]:duration-250 hover:[&_.katex]:scale-110",
+                glyph === "x" ? "[&_.katex]:text-[16px]" : glyph?.includes("frac") || glyph?.includes("matrix") ? "[&_.katex]:text-[12px]" : "[&_.katex]:text-[15px]",
+                isActive && "bg-tint text-ink"
+            )}
         >
-            <Icon className="w-4 h-4" />
+            {glyphMarkup ? <span aria-hidden dangerouslySetInnerHTML={{ __html: glyphMarkup }} /> : <Icon className="w-4 h-4" />}
         </Button>
+        </Tip>
     )
 }
 
@@ -116,11 +140,13 @@ function ImageButton({
                 className="hidden"
                 onChange={handleFileChange}
             />
+            <Tip label="Image">
             <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                title="Image"
+                data-anim="lift"
+                className="text-ink-soft hover:text-ink"
                 aria-label="Image"
                 disabled={isDisabled}
                 onMouseDown={(e) => e.preventDefault()}
@@ -128,6 +154,7 @@ function ImageButton({
             >
                 <ImageIcon className="w-4 h-4" />
             </Button>
+            </Tip>
         </>
     )
 }
@@ -143,18 +170,18 @@ export function FormattingToolbar({
     "use no memo"
 
     return (
-        <div className="flex items-center gap-1 border-b px-4 py-2 bg-muted/20">
+        <div role="toolbar" aria-label="Formatting" className="scrollbar-none flex items-center gap-0.5 overflow-x-auto border-b border-hairline-soft bg-sheet px-3 py-1.5 sm:px-4">
             {TEXT_ACTIONS.map((action) => (
                 <ToolbarButton key={action.label} action={action} activeView={activeView} disabled={disabled} />
             ))}
 
-            <div className="mx-1 h-5 w-px bg-border" />
+            <div className="mx-1.5 h-5 w-px shrink-0 bg-border" />
 
             {MATH_ACTIONS.map((action) => (
                 <ToolbarButton key={action.label} action={action} activeView={activeView} disabled={disabled} />
             ))}
 
-            <div className="mx-1 h-5 w-px bg-border" />
+            <div className="mx-1.5 h-5 w-px shrink-0 bg-border" />
 
             <ImageButton activeView={activeView} disabled={disabled} />
         </div>

@@ -11,6 +11,8 @@ import { deleteDoc, DocumentResponsePermission, restoreDocVersion } from "@/api/
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-fetch"
 import { ArrowLeft, Eye, Trash2 } from "lucide-react"
+import { Tip } from "@/components/ui/tooltip"
+import { UnitSpinner } from "@/components/ui/spinner"
 import { SaveStatus } from "./SaveStatus"
 import { PresenceStack, type PresentUser } from "./PresenceStack"
 import { ThemeToggle } from "@/components/ThemeToggle"
@@ -110,7 +112,8 @@ export default function DocPage() {
 
   if (loading || authLoading) {
     return (
-      <div className="h-screen flex items-center justify-center text-sm text-muted-foreground">
+      <div className="h-screen flex items-center justify-center gap-2 bg-desk text-sm text-muted-foreground">
+        <UnitSpinner />
         Loading document...
       </div>
     )
@@ -118,7 +121,7 @@ export default function DocPage() {
 
   if (!doc || !user) {
     return (
-      <div className="h-screen flex items-center justify-center text-sm text-red-500">
+      <div className="h-screen flex items-center justify-center bg-desk text-sm text-ink-soft">
         Document not found
       </div>
     )
@@ -139,7 +142,7 @@ export default function DocPage() {
   }
 
   return (
-    <div className="h-screen w-full flex flex-col bg-white dark:bg-neutral-950">
+    <div className="h-screen w-full flex flex-col bg-desk">
       <DeleteConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
@@ -149,25 +152,28 @@ export default function DocPage() {
       />
 
 
-      <div className="flex items-center justify-between border-b px-4 py-2 print:hidden">
+      <div className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b border-hairline-soft bg-sheet px-3 py-2 sm:px-4 print:hidden">
 
 
         <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Back to documents"
-            title="Back to documents"
-            onClick={() => router.push("/docs")}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          <Tip label="Back to documents">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Back to documents"
+              data-anim="back"
+              className="text-ink-soft"
+              onClick={() => router.push("/docs")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Tip>
 
           <input
             value={title}
             onChange={handleTitleChange}
             aria-label="Document title"
-            className="min-w-0 text-sm font-medium outline-none bg-transparent border-b border-transparent focus:border-muted"
+            className="w-[18rem] max-w-[40vw] min-w-0 border-b border-transparent bg-transparent py-0.5 text-sm font-medium text-ink outline-none transition-colors hover:border-hairline focus:border-ring"
             disabled={isReadOnly}
           />
 
@@ -175,7 +181,7 @@ export default function DocPage() {
         </div>
 
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <PresenceStack users={presence} />
 
           <ThemeToggle />
@@ -187,22 +193,24 @@ export default function DocPage() {
           <SharePopover doc={doc} user={user}/>
 
           {isOwner && (
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Delete document"
-              title="Delete document"
-              className="text-neutral-500 hover:text-red-600"
-              onClick={() => setDeleteDialogOpen(true)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <Tip label="Delete document">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Delete document"
+                data-anim="tilt"
+                className="text-ink-faint hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </Tip>
           )}
         </div>
       </div>
 
       {isReadOnly && (
-        <div className="flex items-center gap-2 border-b bg-neutral-100 px-4 py-1.5 text-xs text-neutral-700 print:hidden dark:bg-neutral-800/60 dark:text-neutral-300">
+        <div className="flex items-center gap-2 border-b border-hairline-soft bg-tint px-4 py-1.5 text-xs text-ink-soft print:hidden">
           <Eye className="h-3.5 w-3.5" />
           Viewing only. You don&apos;t have permission to edit this document.
         </div>
@@ -210,7 +218,8 @@ export default function DocPage() {
 
 
       {restoring ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+        <div className="flex flex-1 items-center justify-center gap-2 bg-desk text-sm text-muted-foreground">
+          <UnitSpinner />
           Restoring version…
         </div>
       ) : (
