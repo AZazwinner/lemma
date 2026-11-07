@@ -1,0 +1,109 @@
+"""Live editing must keep working with no Valkey, or with a Valkey that is unreachable.
+
+Moved out of the old multi-replica suite so the fallback path (rooms reconciling through the database)
+stays covered after that suite was removed.
+"""
+import asyncio
+
+import pycrdt
+import pytest
+
+from db.modules.liveshare import ydoc_room
+from db.modules.liveshare.backfill import BLOCKS_KEY, ydoc_blocks
+from db.modules.liveshare.ydoc_room import RoomRegistry
+from tests.test_docs_permissions import create_doc, signup
+from tests.test_liveshare_ws import new_block_update
+
+DEAD_VALKEY = "redis://127.0.0.1:1/0"
+
+
+class FakeSocket:
+    def __init__(self):
+        self.sent: list[bytes] = []
+
+    async def send_bytes(self, data: bytes) -> None:
+        self.sent.append(data)
+
+
+def block_ids(ydoc) -> list[str]:
+    return [b["id"] for b in ydoc_blocks(ydoc)]
+
+
+def blocks_seen_by(socket: FakeSocket) -> set[str]:
+    replica = pycrdt.Doc()
+    for message in socket.sent:
+        if message[0] == pycrdt.YMessageType.SYNC:
+            pycrdt.handle_sync_message(message[1:], replica)
+    return {b["id"] for b in replica.get(BLOCKS_KEY, type=pycrdt.Array).to_py()}
+
+
+async def wait_until(condition, timeout=6.0):
+    deadline = asyncio.get_running_loop().time() + timeout
+    while asyncio.get_running_loop().time() < deadline:
+        if condition():
+            return True
+        await asyncio.sleep(0.05)
+    return condition()
+
+
+async def shutdown_all(*registries):
+    for registry in registries:
+        await registry.shutdown()
+
+
+@pytest.fixture()
+def doc_id(client):
+    _, token = signup(client, "owner", "owner@example.com")
+    return create_doc(client, token)
+
+
+@pytest.fixture(autouse=True)
+def manual_flushes(monkeypatch):
+    """Keep flushes and reconciles under each test's control so results don't depend on timers."""
+    monkeypatch.setattr(ydoc_room, "DEBOUNCE_SECONDS", 3600)
+    monkeypatch.setattr(ydoc_room, "MAX_INTERVAL_SECONDS", 3600)
+    monkeypatch.setattr(ydoc_room, "RECONCILE_SECONDS", 0)
+    monkeypatch.setattr(ydoc_room.YRoom, "maybe_flush_on_interval", lambda self: None)
+
+
+def test_replicas_converge_through_the_database_when_valkey_is_absent(doc_id, monkeypatch):
+    monkeypatch.setattr(ydoc_room, "RECONCILE_SECONDS", 0.2)
+
+    async def scenario():
+        a, b = RoomRegistry(None), RoomRegistry(None)
+        try:
+            room_a, room_b = await a.get_or_create(doc_id), await b.get_or_create(doc_id)
+            sock_a, sock_b = FakeSocket(), FakeSocket()
+            await room_a.add_socket(sock_a)
+            await room_b.add_socket(sock_b)
+
+            await room_a.handle_sync(new_block_update("via-db", "x"), sock_a)
+            await room_a.flush()
+
+            assert await wait_until(lambda: "via-db" in blocks_seen_by(sock_b))
+        finally:
+            await shutdown_all(a, b)
+
+    asyncio.run(scenario())
+
+
+def test_editing_still_works_when_valkey_is_down(doc_id, monkeypatch):
+    monkeypatch.setattr(ydoc_room, "RECONCILE_SECONDS", 0.2)
+
+    async def scenario():
+        a, b = RoomRegistry(DEAD_VALKEY), RoomRegistry(DEAD_VALKEY)
+        try:
+            room_a, room_b = await a.get_or_create(doc_id), await b.get_or_create(doc_id)
+            sock_a, sock_b = FakeSocket(), FakeSocket()
+            await room_a.add_socket(sock_a)
+            await room_b.add_socket(sock_b)
+
+            await room_a.handle_sync(new_block_update("no-valkey", "still works"), sock_a)
+            assert "no-valkey" in block_ids(room_a.ydoc)
+            await room_a.flush()
+
+            assert await wait_until(lambda: "no-valkey" in blocks_seen_by(sock_b))
+        finally:
+            await shutdown_all(a, b)
+
+    asyncio.run(scenario())

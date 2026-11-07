@@ -1,2 +1,0 @@
-pycrdt==0.14.2
-websockets==17.0.1
