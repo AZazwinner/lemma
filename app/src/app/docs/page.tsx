@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { useDocuments, useSharedDocuments } from "@/hooks/useDocs"
 import { useTrash } from "@/hooks/useTrash"
 import { useRouter } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { TemplateDocsRow } from "./TemplateDocs"
 import { DocRows, type DocListItem } from "./DocRows"
 import { TrashRows } from "./TrashRows"
@@ -26,6 +26,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { FilePlus2, LogOut, Search } from "lucide-react"
 import { Logo } from "@/components/Logo"
+import { LayoutGroup, motion } from "framer-motion"
+import { Segmented } from "@/components/ui/segmented"
+import { EmptySet } from "@/components/ui/spinner"
 
 type Tab = "owned" | "shared" | "all" | "trash"
 type SortKey = "recent" | "alpha"
@@ -91,6 +94,10 @@ export default function DocsPage() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [docPendingDelete, setDocPendingDelete] = useState<DocListItem | null>(null)
   const [trashDocPendingDelete, setTrashDocPendingDelete] = useState<TrashedDocument | null>(null)
+  const [searchFocused, setSearchFocused] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
+  // The list slides in from the side of the tab that was chosen.
+  const [tabDirection, setTabDirection] = useState(1)
 
 
   useEffect(() => {
@@ -220,7 +227,7 @@ export default function DocsPage() {
 
   if (authLoading || docsLoading || sharedDocsLoading) {
     return (
-      <div className="paper-surface flex h-screen items-center justify-center bg-[var(--paper)] text-sm text-[var(--ink-faint)]">
+      <div className="paper-surface flex h-screen items-center justify-center gap-2 bg-desk text-sm text-ink-faint">
         Loading your workspace&hellip;
       </div>
     )
@@ -237,7 +244,7 @@ export default function DocsPage() {
   ]
 
   return (
-    <div className="paper-surface flex h-screen flex-col bg-[var(--paper)] text-[var(--ink)]">
+    <div className="paper-surface flex h-screen flex-col bg-desk text-ink">
       <DeleteConfirmDialog
         open={docPendingDelete !== null}
         onOpenChange={(open) => {
@@ -259,38 +266,64 @@ export default function DocsPage() {
       />
 
 
-      <header className="flex items-center justify-between gap-4 border-b border-[var(--hairline-soft)] px-6 py-3">
+      <header className="flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-hairline-soft bg-sheet px-5 py-2.5">
         <div className="flex items-center gap-2 text-sm font-medium">
-          <Logo className="h-4 w-4 text-[var(--pen)]" />
+          <Logo className="h-4 w-4" />
           mathboard
         </div>
 
-        <div className="relative w-full max-w-sm">
-          <Search className="pointer-events-none absolute left-1 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-faint)]" />
+        {/* On focus the magnifier slides to the right end and becomes the search button. It runs the same live filter. */}
+        <form
+          role="search"
+          data-active={searchFocused || query !== ""}
+          onSubmit={(e) => {
+            e.preventDefault()
+            setQuery(searchRef.current?.value ?? query)
+            searchRef.current?.focus()
+          }}
+          onFocus={() => setSearchFocused(true)}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSearchFocused(false)
+          }}
+          className="group/search relative order-3 w-full sm:order-none sm:w-auto sm:max-w-sm sm:flex-1"
+        >
           <input
+            ref={searchRef}
+            type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && query) {
+                e.preventDefault()
+                setQuery("")
+              }
+            }}
             placeholder="Search documents"
-            className="w-full border-b border-[var(--hairline)] bg-transparent py-1 pl-6 pr-1 text-sm text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] focus-visible:border-[var(--ink)]"
+            aria-label="Search documents"
+            className="h-[34px] w-full rounded-lg border border-hairline bg-desk pr-10 pl-8 text-sm text-ink outline-none transition-[border-color,box-shadow,background-color,padding] duration-300 placeholder:text-ink-faint group-data-[active=true]/search:border-ring group-data-[active=true]/search:bg-sheet group-data-[active=true]/search:pl-3 group-data-[active=true]/search:ring-4 group-data-[active=true]/search:ring-ring/12 [&::-webkit-search-cancel-button]:hidden"
           />
-        </div>
+          <button
+            type="submit"
+            aria-label="Search"
+            tabIndex={searchFocused || query !== "" ? 0 : -1}
+            className="absolute top-1/2 left-1 flex h-[26px] w-[26px] -translate-y-1/2 items-center justify-center rounded-md text-ink-faint transition-[left,background-color,color,scale] duration-[400ms] ease-[cubic-bezier(0.2,0.7,0.2,1)] group-data-[active=true]/search:left-[calc(100%-30px)] group-data-[active=true]/search:bg-primary group-data-[active=true]/search:text-primary-foreground hover:scale-105 active:scale-95"
+          >
+            <Search className="h-3.5 w-3.5 transition-transform duration-[400ms] group-data-[active=true]/search:rotate-90" />
+          </button>
+        </form>
 
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={handleNewDocument}
-            className="bg-[var(--ink)] text-[var(--paper)] hover:bg-[var(--ink)]/85"
-          >
+          <Button onClick={handleNewDocument} data-anim="lift" className="h-[34px] px-3.5">
             <FilePlus2 className="h-4 w-4" />
             New document
           </Button>
 
-          <ThemeToggle className="text-[var(--ink-faint)] hover:bg-[var(--paper-dim)] hover:text-[var(--ink)]" />
+          <ThemeToggle />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" aria-label="Account menu" className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
-                <UserAvatar userId={user.id} name={user.username} className="h-8 w-8 text-xs" />
+                <UserAvatar userId={user.id} name={user.username} className="h-8 w-8 text-[15px]" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -309,111 +342,110 @@ export default function DocsPage() {
       </header>
 
 
-      <div className="flex-1 overflow-y-auto px-8 py-10">
-        <div className="mx-auto flex max-w-3xl flex-col gap-10">
+      <div className="flex-1 overflow-y-auto px-4 py-10 sm:px-8">
+        <div className="mx-auto flex max-w-3xl flex-col gap-9">
           {tab !== "trash" && (
             <section>
-              <h2 className="font-heading mb-3 text-xl italic text-[var(--ink)]">Start a new document</h2>
+              <h2 className="mb-3 text-sm font-semibold tracking-[-0.005em] text-ink">Start a new document</h2>
               <TemplateDocsRow />
             </section>
           )}
 
-          <section>
-            <div className="mb-4 flex items-center justify-between gap-4 border-b border-[var(--hairline-soft)] pb-0">
-              <div className="flex gap-5">
-                {TABS.map((t) => (
+          <section className="rounded-xl border border-hairline bg-sheet px-3 pt-4 pb-3 sm:px-5">
+            <div className="mb-2 flex flex-wrap items-end justify-between gap-3 border-b border-hairline-soft">
+              <div className="flex flex-wrap gap-x-5 gap-y-1">
+                {TABS.map((t, i) => (
                   <button
                     key={t.key}
                     type="button"
-                    onClick={() => setTab(t.key)}
+                    onClick={() => {
+                      setTabDirection(i >= TABS.findIndex((x) => x.key === tab) ? 1 : -1)
+                      setTab(t.key)
+                    }}
                     className={cn(
-                      "relative pb-2.5 text-[12.5px] font-semibold transition-colors",
-                      tab === t.key ? "text-[var(--ink)]" : "text-[var(--ink-faint)] hover:text-[var(--ink-soft)]"
+                      "group/tab relative pb-2.5 text-[13px] font-medium transition-colors duration-200",
+                      tab === t.key ? "text-ink" : "text-ink-faint hover:text-ink"
                     )}
                   >
                     {t.label}
-                    <span className="ml-1 font-normal text-[var(--ink-faint)]">{t.count}</span>
-                    {tab === t.key && (
-                      <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--pen)]" />
+                    <span
+                      className={cn(
+                        "ml-1.5 inline-flex h-[18px] min-w-5 items-center justify-center rounded-full px-1.5 text-[11.5px] font-medium tabular-nums transition-[background-color,color,transform] duration-200 group-hover/tab:-translate-y-px",
+                        tab === t.key ? "bg-primary text-primary-foreground" : "bg-muted text-ink-faint"
+                      )}
+                    >
+                      {t.count}
+                    </span>
+                    {tab === t.key ? (
+                      <motion.span
+                        layoutId="doc-tab-ink"
+                        transition={{ type: "spring", stiffness: 420, damping: 36 }}
+                        className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-primary"
+                      />
+                    ) : (
+                      <span className="absolute inset-x-0 -bottom-px h-[2px] origin-center scale-x-0 rounded-full bg-hairline transition-transform duration-200 group-hover/tab:scale-x-100" />
                     )}
                   </button>
                 ))}
               </div>
 
               {tab !== "trash" && (
-                <div className="mb-2.5 flex shrink-0 gap-1 text-[11px]">
-                  {(
-                    [
-                      ["recent", "Last edited"],
-                      ["alpha", "A–Z"],
-                    ] as [SortKey, string][]
-                  ).map(([key, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setSort(key)}
-                      className={cn(
-                        "rounded-full px-2.5 py-1 font-medium transition-colors",
-                        sort === key
-                          ? "bg-[var(--paper-dim)] text-[var(--ink)]"
-                          : "text-[var(--ink-faint)] hover:text-[var(--ink-soft)]"
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <Segmented
+                  className="mb-2"
+                  label="Sort documents"
+                  value={sort}
+                  onChange={setSort}
+                  options={[
+                    { value: "recent", label: "Last edited" },
+                    { value: "alpha", label: "A–Z" },
+                  ]}
+                />
               )}
             </div>
 
-            {tab === "trash" ? (
-              visibleTrash.length === 0 ? (
-                <div className="px-4 py-14 text-center text-sm text-[var(--ink-faint)]">
-                  {query ? `No trashed documents match "${query}"` : "Trash is empty"}
-                </div>
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0, x: 18 * tabDirection }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.32, ease: [0.2, 0.7, 0.2, 1] }}
+            >
+              {tab === "trash" ? (
+                visibleTrash.length === 0 ? (
+                  <ListEmpty>{query ? `No trashed documents match "${query}"` : "Trash is empty"}</ListEmpty>
+                ) : (
+                  <TrashRows docs={visibleTrash} onRestore={handleRestoreDoc} onDeleteForever={handleDeleteForeverDoc} />
+                )
+              ) : visibleDocs.length === 0 ? (
+                <EmptyState query={query} tab={tab} onNewDocument={handleNewDocument} />
               ) : (
-                <TrashRows docs={visibleTrash} onRestore={handleRestoreDoc} onDeleteForever={handleDeleteForeverDoc} />
-              )
-            ) : visibleDocs.length === 0 ? (
-              <EmptyState query={query} tab={tab} onNewDocument={handleNewDocument} />
-            ) : (
-              <>
-                {groups.map((group, i) => (
-                  <div key={group.label || "flat"}>
-                    {group.label && (
-                      <div
-                        className={cn(
-                          "mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-faint)]",
-                          i > 0 && "mt-5"
-                        )}
-                      >
-                        {group.label}
-                      </div>
-                    )}
-                    <DocRows
-                      docs={group.docs}
-                      currentUser={user}
-                      onDelete={handleDeleteDoc}
-                      onRename={handleRenameDoc}
-                      onDuplicate={handleDuplicateDoc}
-                    />
-                  </div>
-                ))}
+                <LayoutGroup id={tab}>
+                  {groups.map((group, i) => (
+                    <div key={group.label || "flat"}>
+                      {group.label && (
+                        <div className={cn("mb-1 px-2 text-xs font-medium text-ink-faint mb-swap", i > 0 ? "mt-4" : "mt-2")}>
+                          {group.label}
+                        </div>
+                      )}
+                      <DocRows
+                        docs={group.docs}
+                        currentUser={user}
+                        onDelete={handleDeleteDoc}
+                        onRename={handleRenameDoc}
+                        onDuplicate={handleDuplicateDoc}
+                      />
+                    </div>
+                  ))}
 
-                {remaining > 0 && (
-                  <div className="flex justify-center pt-5">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                      className="border-[var(--hairline)] bg-transparent text-[var(--ink)] hover:bg-[var(--paper-dim)]"
-                    >
-                      Load {Math.min(PAGE_SIZE, remaining)} more
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
+                  {remaining > 0 && (
+                    <div className="flex justify-center pt-4 pb-1">
+                      <Button size="sm" variant="outline" onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>
+                        Load {Math.min(PAGE_SIZE, remaining)} more
+                      </Button>
+                    </div>
+                  )}
+                </LayoutGroup>
+              )}
+            </motion.div>
           </section>
         </div>
       </div>
@@ -428,6 +460,16 @@ const EMPTY_LABEL: Record<Tab, string> = {
   trash: "Trash is empty",
 }
 
+function ListEmpty({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div className="mb-swap flex flex-col items-center gap-3 px-4 py-12 text-center">
+      <EmptySet />
+      <div className="text-sm text-ink-soft">{children}</div>
+      {action}
+    </div>
+  )
+}
+
 function EmptyState({
   query,
   tab,
@@ -438,21 +480,17 @@ function EmptyState({
   onNewDocument: () => void
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 px-4 py-14 text-center">
-      <div className="text-sm text-[var(--ink-faint)]">
-        {query ? `No documents match "${query}"` : EMPTY_LABEL[tab]}
-      </div>
-      {!query && tab !== "shared" && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={onNewDocument}
-          className="border-[var(--hairline)] bg-transparent text-[var(--ink)] hover:bg-[var(--paper-dim)]"
-        >
-          <FilePlus2 className="h-4 w-4" />
-          Start your first document
-        </Button>
-      )}
-    </div>
+    <ListEmpty
+      action={
+        !query && tab !== "shared" ? (
+          <Button size="sm" variant="outline" onClick={onNewDocument} data-anim="lift">
+            <FilePlus2 className="h-4 w-4" />
+            Start your first document
+          </Button>
+        ) : undefined
+      }
+    >
+      {query ? `No documents match "${query}"` : EMPTY_LABEL[tab]}
+    </ListEmpty>
   )
 }

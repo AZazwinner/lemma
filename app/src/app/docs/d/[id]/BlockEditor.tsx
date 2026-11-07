@@ -19,6 +19,14 @@ import { imageDecorations } from "./imageWidget"
 import { sidekickExtension } from "@/components/sidekick/extension"
 
 type SlashMenuState = { query: string; left: number; top: number; index: number }
+
+/** The block's kind, shown in the page margin: § heading, = display equation, ¶ anything else. Presentational only. */
+function blockMark(source: string): string {
+    const t = source.trimStart()
+    if (/^#{1,6}\s/.test(t)) return "§"
+    if (t.startsWith("$$") || t.startsWith("\\[")) return "="
+    return "¶"
+}
 type SymbolMenuState = { query: string; from: number; to: number; left: number; top: number; index: number }
 
 export function BlockEditor({
@@ -449,7 +457,7 @@ export function BlockEditor({
 
     return (
         <div className="w-full flex justify-center">
-            <div key={id} data-block-index={position} className="w-full max-w-4xl relative">
+            <div key={id} data-block-index={position} data-mark={blockMark(previewText)} className="w-full max-w-4xl relative">
                 <div
                     onClick={() => {
                         if (consumeClickSuppression()) return
@@ -457,14 +465,14 @@ export function BlockEditor({
                     }}
                     onMouseDown={(e) => onBlockMouseDown(position, e)}
                     className={cn(
-                        "rounded-md px-10 py-2",
+                        "rounded-md px-10 py-2 transition-[opacity,background-color] duration-150",
                         "text-base font-serif leading-relaxed whitespace-pre-wrap break-words",
-                        "cursor-text transition-opacity duration-150",
+                        "cursor-text",
 
                         isFocused
                             ? "absolute inset-0 z-0 pointer-events-none opacity-0"
                             : "relative z-10 opacity-100",
-                        isSelected ? "bg-blue-100 dark:bg-blue-500/20" : "hover:bg-muted/60"
+                        isSelected ? "bg-[var(--wash)]" : "hover:bg-tint"
                     )}
                 >
                     <LatexRenderer content={previewText} />
@@ -474,7 +482,7 @@ export function BlockEditor({
                     className={cn(
                         "w-full rounded-md transition-opacity duration-150",
                         isFocused
-                            ? "relative z-10 bg-muted/60 opacity-100"
+                            ? "relative z-10 bg-tint opacity-100"
                             : "absolute inset-0 z-0 pointer-events-none bg-transparent opacity-0"
                     )}
                 />

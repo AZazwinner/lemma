@@ -18,7 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Check, Copy, Trash } from "lucide-react"
+import { Copy, Trash } from "lucide-react"
+import { DrawnCheck } from "@/components/ui/spinner"
+import { cn } from "@/lib/utils"
 import { createOrUpdateShareDoc, deleteShareDoc, getShareDocs } from "@/api/share"
 import { getUserByUsername, GetUserResponse } from "@/api/user"
 import { ShareableDoc } from "@/api/docs"
@@ -137,7 +139,7 @@ export function ShareContent({
         </PopoverDescription>
       </PopoverHeader>
 
-      {error && <div className="text-xs text-red-500">{error}</div>}
+      {error && <div className="mb-swap text-xs text-destructive">{error}</div>}
 
 
       {doc.permission !== "read" && <div className="flex items-center gap-2">
@@ -160,7 +162,7 @@ export function ShareContent({
 
       <div className="space-y-2 px-4">
         <div
-          className="flex items-center justify-between border rounded-md px-2 py-1 gap-2"
+          className="flex items-center justify-between gap-2 rounded-lg border border-hairline px-2 py-1 transition-colors hover:bg-tint"
         >
           <div className="flex items-center gap-2 min-w-0">
             <UserAvatar userId={doc.owner_id} name={doc.owner_username} />
@@ -197,7 +199,7 @@ export function ShareContent({
           sharedUsers.map((user, index) => (
             <div
               key={index}
-              className="flex items-center justify-between border rounded-md px-2 py-1 gap-2"
+              className="flex items-center justify-between gap-2 rounded-lg border border-hairline px-2 py-1 transition-colors hover:bg-tint"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <UserAvatar userId={user.user_id} name={user.username} />
@@ -227,7 +229,8 @@ export function ShareContent({
                   size="icon"
                   variant="ghost"
                   aria-label={`Remove ${user.username}'s access`}
-                  className="text-red-500 hover:text-red-600"
+                  data-anim="tilt"
+                  className="text-ink-faint hover:bg-destructive/10 hover:text-destructive"
                   onClick={async () => {
                     setError(null)
                     const previous = sharedUsers
@@ -250,10 +253,10 @@ export function ShareContent({
 
 
       <div className="flex items-center gap-2">
-        <Input value={shareLink} readOnly />
-        <Button onClick={handleCopy} size="sm" variant={copied ? "secondary" : "default"}>
-          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          {copied ? "Copied" : "Copy"}
+        <Input value={shareLink} readOnly key={copied ? "copied" : "idle"} className={cn("font-mono text-xs text-ink-soft", copied && "mb-flash")} />
+        <Button onClick={handleCopy} size="sm" variant={copied ? "outline" : "default"} className={cn(copied && "text-ok")}>
+          {copied ? <DrawnCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          <span key={copied ? "copied" : "copy"} className="mb-swap">{copied ? "Copied" : "Copy"}</span>
         </Button>
       </div>
     </>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+import { UiEffects } from "@/components/UiEffects";
 import "katex/dist/katex.min.css";
 
 const geistSans = Geist({
@@ -85,7 +86,7 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
         />
-        {children}
+        <UiEffects>{children}</UiEffects>
         <Analytics />
       </body>
     </html>

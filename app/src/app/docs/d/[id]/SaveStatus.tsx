@@ -1,6 +1,8 @@
 "use client"
 
+import { WifiOff } from "lucide-react"
 import type { ConnectionStatus } from "./yjs/provider"
+import { DrawnCheck, UnitSpinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 const COPY: Record<ConnectionStatus, string> = {
@@ -12,15 +14,17 @@ const COPY: Record<ConnectionStatus, string> = {
 
 export function SaveStatus({ status }: { status: ConnectionStatus }) {
   return (
-    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <span
-        className={cn(
-          "h-1.5 w-1.5 rounded-full",
-          status === "connected" && "bg-emerald-500",
-          status === "connecting" && "bg-neutral-400",
-          status === "disconnected" && "bg-red-500"
-        )}
-      />
+    <div
+      role="status"
+      key={status}
+      className={cn(
+        "mb-swap flex items-center gap-1.5 text-xs whitespace-nowrap",
+        status === "disconnected" ? "text-destructive" : "text-muted-foreground"
+      )}
+    >
+      {status === "connected" && <DrawnCheck className="size-3.5 text-ok" />}
+      {status === "connecting" && <UnitSpinner className="size-3.5" />}
+      {status === "disconnected" && <WifiOff className="size-3.5" aria-hidden />}
       {COPY[status]}
     </div>
   )
