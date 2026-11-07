@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react"
 import { Moon, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Tip } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 
@@ -17,6 +18,8 @@ function subscribe(onChange: () => void) {
 const getIsDark = () => document.documentElement.classList.contains("dark")
 const getIsDarkOnServer = () => false
 
+const ICON = "absolute h-4 w-4 transition-[transform,opacity] duration-[450ms] ease-[cubic-bezier(0.34,1.4,0.64,1)]"
+
 export function ThemeToggle({ className }: { className?: string }) {
   const isDark = useSyncExternalStore(subscribe, getIsDark, getIsDarkOnServer)
 
@@ -26,17 +29,22 @@ export function ThemeToggle({ className }: { className?: string }) {
     localStorage.setItem("theme", next ? "dark" : "light")
   }
 
+  const label = isDark ? "Switch to light theme" : "Switch to dark theme"
+
+  // Sun and moon trade places with a quarter turn.
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      title={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      onClick={toggle}
-      className={cn("text-muted-foreground", className)}
-    >
-      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </Button>
+    <Tip label={label}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={label}
+        onClick={toggle}
+        className={cn("relative text-muted-foreground", className)}
+      >
+        <Moon className={cn(ICON, isDark ? "rotate-90 scale-50 opacity-0" : "rotate-0 scale-100 opacity-100")} />
+        <Sun className={cn(ICON, isDark ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-50 opacity-0")} />
+      </Button>
+    </Tip>
   )
 }

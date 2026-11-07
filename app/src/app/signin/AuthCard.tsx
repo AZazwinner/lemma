@@ -1,20 +1,23 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Segmented } from "@/components/ui/segmented"
+import { UnitSpinner } from "@/components/ui/spinner"
 import { createAccountHandler, signinHandler } from "./handlers"
 import { setAuthToken } from "@/lib/auth-token"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import Link from "next/link"
+import { AnimatePresence, motion } from "framer-motion"
+import { AtSign, Lock, Mail, User } from "lucide-react"
+import { AuthCardShell, AuthField, AuthFormError, AuthHeading, authLinkClass, shake } from "./AuthLayout"
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MIN_PASSWORD_LENGTH = 8
 
+const submitClass = "mt-2 h-[42px] w-full text-sm"
+
 export const CreateAccount = ({
     handleRedirect,
-    setMode
 }: {
     handleRedirect: () => void
     setMode: (arg0: Mode) => void
@@ -27,6 +30,10 @@ export const CreateAccount = ({
     const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
 
+    const usernameRef = useRef<HTMLInputElement>(null)
+    const emailRef = useRef<HTMLInputElement>(null)
+    const passwordRef = useRef<HTMLInputElement>(null)
+
     const emailValid = email === "" || EMAIL_PATTERN.test(email)
     const passwordValid = password === "" || password.length >= MIN_PASSWORD_LENGTH
     const canSubmit = username.trim() !== "" && EMAIL_PATTERN.test(email) && password.length >= MIN_PASSWORD_LENGTH
@@ -35,7 +42,10 @@ export const CreateAccount = ({
 
     async function handleSignUp() {
         setTouched({ username: true, email: true, password: true })
-        if (!canSubmit) return
+        if (!canSubmit) {
+            shake(username.trim() === "" ? usernameRef.current : !EMAIL_PATTERN.test(email) ? emailRef.current : passwordRef.current)
+            return
+        }
 
         setLoading(true)
 
@@ -57,89 +67,59 @@ export const CreateAccount = ({
     }
 
     return (
-        <Card className="w-full max-w-md">
-            <CardHeader className="text-center space-y-1">
-                <CardTitle className="font-heading text-3xl font-normal">Create account for Mathboard</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                    Pick up where your last proof left off
-                </p>
-            </CardHeader>
+        <div className="space-y-4">
+            <AuthHeading title="Create account for Mathboard" subtitle="Pick up where your last proof left off" />
 
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="signup-username">Username</Label>
-                    <Input
-                        id="signup-username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        onBlur={() => markTouched("username")}
-                        aria-invalid={touched.username && username.trim() === ""}
-                    />
-                    {touched.username && username.trim() === "" && (
-                        <p className="text-xs text-red-500">Username is required.</p>
-                    )}
-                </div>
+            <AuthField
+                ref={usernameRef}
+                id="signup-username"
+                label="Username"
+                icon={User}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onBlur={() => markTouched("username")}
+                aria-invalid={touched.username && username.trim() === ""}
+                error={touched.username && username.trim() === "" ? "Username is required." : undefined}
+            />
 
-                <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                        id="signup-email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        onBlur={() => markTouched("email")}
-                        placeholder="you@example.com"
-                        aria-invalid={touched.email && !emailValid}
-                    />
-                    {touched.email && !emailValid && (
-                        <p className="text-xs text-red-500">Enter a valid email address.</p>
-                    )}
-                </div>
+            <AuthField
+                ref={emailRef}
+                id="signup-email"
+                label="Email"
+                icon={Mail}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => markTouched("email")}
+                placeholder="you@example.com"
+                aria-invalid={touched.email && !emailValid}
+                error={touched.email && !emailValid ? "Enter a valid email address." : undefined}
+            />
 
-                <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                        id="signup-password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        onBlur={() => markTouched("password")}
-                        placeholder="••••••••"
-                        aria-invalid={touched.password && !passwordValid}
-                    />
-                    {touched.password && !passwordValid && (
-                        <p className="text-xs text-red-500">At least {MIN_PASSWORD_LENGTH} characters.</p>
-                    )}
-                </div>
+            <AuthField
+                ref={passwordRef}
+                id="signup-password"
+                label="Password"
+                icon={Lock}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onBlur={() => markTouched("password")}
+                placeholder="••••••••"
+                aria-invalid={touched.password && !passwordValid}
+                error={touched.password && !passwordValid ? `At least ${MIN_PASSWORD_LENGTH} characters.` : undefined}
+            />
 
-                {error && (
-                    <div className="text-sm text-red-500">
-                        {error}
-                    </div>
-                )}
+            {error && <AuthFormError>{error}</AuthFormError>}
 
-                <Button className="w-full py-4" onClick={handleSignUp} disabled={loading}>
-                    {loading ? "Creating account…" : "Create Account"}
-                </Button>
-
-                <div className="text-center text-xs text-muted-foreground space-y-2">
-                    <p>
-                        Already have an account?{" "}
-                        <button
-                            className="underline hover:text-foreground"
-                            onClick={() => setMode("signin")}
-                        >
-                            Sign in
-                        </button>
-                    </p>
-                </div>
-            </CardContent>
-        </Card>
+            <Button className={submitClass} onClick={handleSignUp} disabled={loading} aria-busy={loading}>
+                {loading ? <><UnitSpinner /><span className="mb-swap">Creating account…</span></> : "Create Account"}
+            </Button>
+        </div>
     );
 }
 
 export const Signin = ({
     handleRedirect,
-    setMode
 }: {
     handleRedirect: () => void
     setMode: (arg0: Mode) => void
@@ -149,6 +129,8 @@ export const Signin = ({
 
     const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
+
+    const passwordRef = useRef<HTMLInputElement>(null)
 
     async function handleSignin() {
         setLoading(true)
@@ -162,6 +144,7 @@ export const Signin = ({
 
         if (!result.ok) {
             setError(result.error || "Incorrect credentials")
+            shake(passwordRef.current)
             return
         }
 
@@ -170,68 +153,48 @@ export const Signin = ({
     }
 
     return (
-        <Card className="w-full max-w-md">
-            <CardHeader className="text-center space-y-1">
-                <CardTitle className="font-heading text-3xl font-normal">Sign in to Mathboard</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                    Pick up where your last proof left off
-                </p>
-            </CardHeader>
+        <div className="space-y-4">
+            <AuthHeading title="Sign in to Mathboard" subtitle="Pick up where your last proof left off" />
 
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="signin-username">Username/email</Label>
-                    <Input
-                        id="signin-username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                    />
-                </div>
+            <AuthField
+                id="signin-username"
+                label="Username/email"
+                icon={AtSign}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+            />
 
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="signin-password">Password</Label>
-                        <Link href="/forgot-password" className="text-xs text-muted-foreground underline hover:text-foreground">
-                            Forgot password?
-                        </Link>
-                    </div>
-                    <Input
-                        id="signin-password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                    />
-                </div>
+            <AuthField
+                ref={passwordRef}
+                id="signin-password"
+                label="Password"
+                icon={Lock}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                aside={
+                    <Link href="/forgot-password" className={`text-xs ${authLinkClass}`}>
+                        Forgot password?
+                    </Link>
+                }
+            />
 
-                {error && (
-                    <div className="text-sm text-red-500">
-                        {error}
-                    </div>
-                )}
+            {error && <AuthFormError>{error}</AuthFormError>}
 
-                <Button className="w-full py-4" onClick={handleSignin} disabled={loading}>
-                    {loading ? "Signing in…" : "Sign in"}
-                </Button>
-
-                <div className="text-center text-xs text-muted-foreground space-y-2">
-                    <p>
-                        No account?{" "}
-                        <button
-                            className="underline hover:text-foreground"
-                            onClick={() => setMode("signup")}
-                        >
-                            Create one
-                        </button>
-                    </p>
-
-                </div>
-            </CardContent>
-        </Card>
+            <Button className={submitClass} onClick={handleSignin} disabled={loading} aria-busy={loading}>
+                {loading ? <><UnitSpinner /><span className="mb-swap">Signing in…</span></> : "Sign in"}
+            </Button>
+        </div>
     );
 }
 
 type Mode = "signin" | "signup"
+
+const MODES: { value: Mode; label: string }[] = [
+    { value: "signin", label: "Sign in" },
+    { value: "signup", label: "Create account" },
+]
 
 export const AuthCard = ({
     handleRedirect,
@@ -241,8 +204,36 @@ export const AuthCard = ({
     paramMode?: Mode
 }) => {
     const [mode, setMode] = useState<Mode>(paramMode)
+    // Slide toward the side of the tab that was chosen.
+    const direction = mode === "signup" ? 1 : -1
 
-    return mode === "signup"
-        ? <CreateAccount handleRedirect={handleRedirect} setMode={setMode} />
-        : <Signin handleRedirect={handleRedirect} setMode={setMode} />
+    return (
+        <AuthCardShell
+            top={<Segmented as="tabs" label="Account" value={mode} onChange={setMode} options={MODES} />}
+            footer={
+                mode === "signin" ? (
+                    <>No account? <button type="button" className={authLinkClass} onClick={() => setMode("signup")}>Create one</button></>
+                ) : (
+                    <>Already have an account? <button type="button" className={authLinkClass} onClick={() => setMode("signin")}>Sign in</button></>
+                )
+            }
+        >
+            <div className="relative">
+                <AnimatePresence mode="wait" initial={false} custom={direction}>
+                    <motion.div
+                        key={mode}
+                        custom={direction}
+                        initial={{ opacity: 0, x: 24 * direction }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -24 * direction }}
+                        transition={{ duration: 0.22, ease: [0.2, 0.7, 0.2, 1] }}
+                    >
+                        {mode === "signup"
+                            ? <CreateAccount handleRedirect={handleRedirect} setMode={setMode} />
+                            : <Signin handleRedirect={handleRedirect} setMode={setMode} />}
+                    </motion.div>
+                </AnimatePresence>
+            </div>
+        </AuthCardShell>
+    )
 }

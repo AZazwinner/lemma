@@ -19,7 +19,7 @@ const WS_URL = process.env.NEXT_PUBLIC_WS_URL
 
 export type FocusRequest = { index: number; atEnd: boolean; pos?: number }
 export type ExportFormat = "pdf" | "md" | "txt" | "html"
-export type TextEditorHandle = { exportAs: (format: ExportFormat) => void }
+export type TextEditorHandle = { exportAs: (format: ExportFormat) => Promise<void> }
 
 type Props = {
     doc: DocumentResponsePermission
@@ -312,19 +312,25 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
 
     const [exportSnapshot, setExportSnapshot] = useState<{ title: string; blocks: ExportBlock[]; format: ExportFormat } | null>(null)
     const htmlExportRef = useRef<HTMLDivElement | null>(null)
+    // Resolves the promise exportAs returned once a PDF or HTML export has finished, so the Export button can show progress.
+    const exportDoneRef = useRef<(() => void) | null>(null)
 
     useImperativeHandle(ref, () => ({
         exportAs: (format) => {
             const snapshotBlocks = blocks.map((b) => ({ id: b.id, content: b.text.toString() }))
             if (format === "md") {
                 downloadMarkdown(doc.title, snapshotBlocks)
-                return
+                return Promise.resolve()
             }
             if (format === "txt") {
                 downloadPlainText(doc.title, snapshotBlocks)
-                return
+                return Promise.resolve()
             }
-            setExportSnapshot({ title: doc.title, blocks: snapshotBlocks, format })
+            exportDoneRef.current?.()
+            return new Promise<void>((resolve) => {
+                exportDoneRef.current = resolve
+                setExportSnapshot({ title: doc.title, blocks: snapshotBlocks, format })
+            })
         },
     }))
 
@@ -341,6 +347,8 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
                 }
             }
             if (!cancelled) setExportSnapshot(null)
+            exportDoneRef.current?.()
+            exportDoneRef.current = null
         }, 50)
         return () => {
             cancelled = true
@@ -350,7 +358,7 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
 
     if (!awareness || !undoManager) {
         return (
-            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground h-[calc(100vh-180px)]">
+            <div className="flex-1 flex items-center justify-center gap-2 bg-desk text-sm text-muted-foreground h-[calc(100vh-180px)]">
                 {status === "disconnected" ? "Reconnecting…" : "Loading…"}
             </div>
         )
@@ -358,16 +366,17 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
 
     return (
         <>
-            <div className="flex-1 flex flex-col bg-white dark:bg-neutral-950 h-[calc(100vh-180px)] print:hidden">
+            <div className="flex-1 flex flex-col bg-desk h-[calc(100vh-180px)] print:hidden">
                 <FormattingToolbar activeView={activeView} disabled={doc.permission === "read"} />
 
-                <div className="flex-1 flex flex-col align-items p-16 overflow-y-auto"
+                <div className="editor-desk flex-1 overflow-y-auto px-3 py-8 sm:px-8 sm:py-10"
                     ref={containerRef}
                     onClick={handleContainerClick}
                     onMouseDown={handleContainerMouseDown}
                 >
+                  <div className="editor-sheet editor-doc mx-auto flex w-full max-w-4xl flex-col">
                     {status === "disconnected" && (
-                        <div className="text-xs text-neutral-500 px-10 pb-2">
+                        <div className="mb-swap px-10 pb-2 text-xs text-destructive">
                             Connection lost. Reconnecting…
                         </div>
                     )}
@@ -398,13 +407,14 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
                             consumeClickSuppression={consumeClickSuppression}
                         />
                     )}
-                    <div className="h-[240px] shrink-0" />
+                    <div className="h-[200px] shrink-0" />
+                  </div>
                 </div>
             </div>
 
             {marqueeRect && (
                 <div
-                    className="fixed z-40 border border-blue-500 bg-blue-500/10 pointer-events-none"
+                    className="fixed z-40 rounded-sm border border-ring/50 bg-[var(--wash)] pointer-events-none"
                     style={{
                         left: marqueeRect.left,
                         top: marqueeRect.top,

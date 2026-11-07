@@ -3,11 +3,10 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { AuthLayout } from "../signin/AuthLayout"
+import { DrawnCheck, UnitSpinner } from "@/components/ui/spinner"
+import { AuthCardShell, AuthField, AuthFormError, AuthHeading, AuthLayout, authLinkClass } from "../signin/AuthLayout"
 import { resetPassword } from "@/api/signin"
 
 const MIN_PASSWORD_LENGTH = 8
@@ -50,75 +49,61 @@ export default function ResetPasswordPage() {
     if (!token) {
         return (
             <AuthLayout>
-                <Card className="w-full max-w-md">
-                    <CardHeader className="text-center space-y-1">
-                        <CardTitle className="font-heading text-3xl font-normal">Invalid reset link</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
-                        <p>This link is missing its reset token.</p>
-                        <Link href="/forgot-password" className="underline hover:text-foreground">
-                            Request a new reset link
-                        </Link>
-                    </CardContent>
-                </Card>
+                <AuthCardShell>
+                    <AuthHeading title="Invalid reset link" subtitle="This link is missing its reset token." />
+                    <Link href="/forgot-password" className={`text-sm ${authLinkClass}`}>
+                        Request a new reset link
+                    </Link>
+                </AuthCardShell>
             </AuthLayout>
         )
     }
 
     return (
         <AuthLayout>
-            <Card className="w-full max-w-md">
-                <CardHeader className="text-center space-y-1">
-                    <CardTitle className="font-heading text-3xl font-normal">Set a new password</CardTitle>
-                </CardHeader>
+            <AuthCardShell>
+                <AuthHeading title="Set a new password" />
 
-                <CardContent className="space-y-4">
-                    {done ? (
-                        <div className="rounded-md border bg-muted/40 p-4 text-center text-sm text-muted-foreground">
-                            Password updated - redirecting to sign in…
-                        </div>
-                    ) : (
-                        <>
-                            <div className="space-y-2">
-                                <Label htmlFor="reset-password">New password</Label>
-                                <Input
-                                    id="reset-password"
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="••••••••"
-                                    aria-invalid={password !== "" && !passwordValid}
-                                />
-                                {password !== "" && !passwordValid && (
-                                    <p className="text-xs text-red-500">At least {MIN_PASSWORD_LENGTH} characters.</p>
-                                )}
-                            </div>
+                {done ? (
+                    <div className="mb-swap flex items-center gap-2 rounded-lg border border-hairline bg-muted p-4 text-sm text-ink-soft">
+                        <DrawnCheck className="text-ok" />
+                        Password updated - redirecting to sign in…
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <AuthField
+                            id="reset-password"
+                            label="New password"
+                            icon={Lock}
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                            aria-invalid={password !== "" && !passwordValid}
+                            error={password !== "" && !passwordValid ? `At least ${MIN_PASSWORD_LENGTH} characters.` : undefined}
+                        />
 
-                            <div className="space-y-2">
-                                <Label htmlFor="reset-confirm">Confirm password</Label>
-                                <Input
-                                    id="reset-confirm"
-                                    type="password"
-                                    value={confirm}
-                                    onChange={(e) => setConfirm(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                                    placeholder="••••••••"
-                                    aria-invalid={confirm !== "" && !matches}
-                                />
-                                {confirm !== "" && !matches && (
-                                    <p className="text-xs text-red-500">Passwords don&apos;t match.</p>
-                                )}
-                            </div>
+                        <AuthField
+                            id="reset-confirm"
+                            label="Confirm password"
+                            icon={Lock}
+                            type="password"
+                            value={confirm}
+                            onChange={(e) => setConfirm(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                            placeholder="••••••••"
+                            aria-invalid={confirm !== "" && !matches}
+                            error={confirm !== "" && !matches ? <>Passwords don&apos;t match.</> : undefined}
+                        />
 
-                            {error && <div className="text-sm text-red-500">{error}</div>}
+                        {error && <AuthFormError>{error}</AuthFormError>}
 
-                            <Button className="w-full py-4" onClick={handleSubmit} disabled={loading || !canSubmit}>
-                                {loading ? "Updating…" : "Update password"}
-                            </Button>
-                        </>
-                    )}
-                </CardContent>
-            </Card>
+                        <Button className="mt-2 h-[42px] w-full text-sm" onClick={handleSubmit} disabled={loading || !canSubmit} aria-busy={loading}>
+                            {loading ? <><UnitSpinner /><span className="mb-swap">Updating…</span></> : "Update password"}
+                        </Button>
+                    </div>
+                )}
+            </AuthCardShell>
         </AuthLayout>
     )
 }

@@ -1,5 +1,11 @@
-import { colorForUser, initialsForName } from "@/lib/user-color"
+import { colorForUser } from "@/lib/user-color"
 import { cn } from "@/lib/utils"
+
+/** A person's initial set as an italic variable, the way a proof names its objects. */
+export function variableInitial(name: string): string {
+  const first = name.trim()[0]
+  return first ? first.toLowerCase() : "?"
+}
 
 export function UserAvatar({
   userId,
@@ -13,13 +19,14 @@ export function UserAvatar({
   const { color } = colorForUser(userId)
   return (
     <div
+      aria-label={name}
       className={cn(
-        "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-medium text-white",
+        "flex h-6 w-6 shrink-0 items-center justify-center rounded-full pr-px font-var text-[13px] leading-none text-white italic transition-transform duration-200 hover:-translate-y-0.5",
         className
       )}
       style={{ backgroundColor: color }}
     >
-      {initialsForName(name)}
+      {variableInitial(name)}
     </div>
   )
 }
