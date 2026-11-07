@@ -5,13 +5,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 
-from db.url import normalize_database_url
+from db.url import default_database_url, normalize_database_url
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-assert DATABASE_URL
-DATABASE_URL = normalize_database_url(DATABASE_URL)
+DATABASE_URL = normalize_database_url(os.getenv("DATABASE_URL") or default_database_url())
 
 is_sqlite = DATABASE_URL.startswith("sqlite")
 

@@ -3,12 +3,41 @@ from typing import Optional
 from jose import JWTError, jwt
 
 import os
+import secrets
+from pathlib import Path
 from dotenv import load_dotenv
+
+from db.url import SRC_DIR
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "")
-assert SECRET_KEY
+DEV_SECRET_KEY_FILE = SRC_DIR / ".dev_secret_key"
+
+
+def load_secret_key(env_value: str | None = None, key_file: Path = DEV_SECRET_KEY_FILE) -> str:
+    """SECRET_KEY from the environment. If it is not set, a random key is made once and kept in `key_file` (gitignored), so the app runs with no configuration, every machine gets its own key, and logins survive a restart. A fixed default key would be public, since it would sit in this repo, and anyone could then forge login tokens for any instance that forgot to set a real one. Set SECRET_KEY for anything other people can reach."""
+    value = (os.getenv("SECRET_KEY", "") if env_value is None else env_value).strip()
+    if value:
+        return value
+    try:
+        existing = key_file.read_text().strip()
+        if existing:
+            return existing
+    except FileNotFoundError:
+        pass
+    key = secrets.token_hex(32)
+    try:
+        with open(key_file, "x") as f:
+            f.write(key + "\n")
+        print(f"auth: SECRET_KEY is not set; made a random one and saved it to {key_file} (set SECRET_KEY to use your own)")
+    except FileExistsError:
+        return key_file.read_text().strip()
+    except OSError as e:
+        raise RuntimeError(f"SECRET_KEY is not set and {key_file} cannot be written ({e}); set SECRET_KEY") from e
+    return key
+
+
+SECRET_KEY = load_secret_key()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 WS_TICKET_EXPIRE_SECONDS = 60

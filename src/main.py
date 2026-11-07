@@ -65,4 +65,5 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 12001))
     # Exactly one process, on purpose: live-editing rooms and rate-limit counters live in this process's memory.
     # Without workers=1, uvicorn would take a worker count from the WEB_CONCURRENCY environment variable.
-    uvicorn.run("main:app", host="0.0.0.0", port=port, workers=1, reload=False)
+    # 0.0.0.0 suits a container; the local dev launcher sets HOST=127.0.0.1 so the dev server is not on the network.
+    uvicorn.run("main:app", host=os.getenv("HOST", "0.0.0.0"), port=port, workers=1, reload=False)

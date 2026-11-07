@@ -19,9 +19,9 @@ if config.config_file_name is not None:
 
 
 load_dotenv()
-database_url = os.getenv("DATABASE_URL")
-assert database_url, "DATABASE_URL must be set (see .env.example)"
-from db.url import normalize_database_url
+from db.url import default_database_url, normalize_database_url
+
+database_url = os.getenv("DATABASE_URL") or default_database_url()
 
 config.set_main_option(
     "sqlalchemy.url", normalize_database_url(database_url).replace("%", "%%")

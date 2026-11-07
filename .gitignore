@@ -216,3 +216,6 @@ __marimo__/
 
 # Claude Code: per-machine permissions (the shared skills and commands in .claude/ are tracked)
 .claude/settings.local.json
+
+# Local backend state: random dev SECRET_KEY made on first run (see src/db/core/auth/utils/token.py)
+src/.dev_secret_key
