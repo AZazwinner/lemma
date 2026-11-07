@@ -7,12 +7,12 @@ A collaborative LaTeX editor that renders as you type. Write math like it's a do
 - Slash commands, formatting toolbar, templates, export to PDF, Markdown, HTML or text
 - Sharing with read/write permissions, version history, trash
 
-**Stack:** Next.js (`app/`), FastAPI (`src/`), Yjs via pycrdt for conflict-free editing, SQLite locally (PostgreSQL in Docker
-or on a server), Alembic migrations.
+**Stack:** Next.js (`app/`), FastAPI (`src/`), Yjs via pycrdt for conflict-free editing, SQLite locally (PostgreSQL on a
+server), Alembic migrations.
 
-## Quick start (no Docker)
+## Quick start
 
-**You need:** Git, Python 3.11 or newer, and Node 20.9 or newer. That is all: no Docker and no database server.
+**You need:** Git, Python 3.11 or newer, and Node 20.9 or newer. That is all: no database server.
 It was developed and tested on Windows with Python 3.14 and Node 24; the commands are the same in PowerShell, cmd,
 macOS and Linux.
 
@@ -121,7 +121,6 @@ Everything has a working default for local development; you only need these to c
 |---|---|---|
 | [`src/.env.example`](src/.env.example) | the backend (`npm run dev`) | all optional: `SECRET_KEY`, `DATABASE_URL`, `PORT`, `HOST`, `APP_URL`, `CORS_ORIGINS`, `WS_ACCEPT_LOGIN_TOKEN`, `FORWARDED_ALLOW_IPS`, `SIGNUP_MAX_ATTEMPTS`, `SMTP_*` for password-reset email |
 | [`app/.env.example`](app/.env.example) | the frontend | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`, `NEXT_PUBLIC_APP_URL` |
-| [`.env.example`](.env.example) | `docker compose` | `POSTGRES_PASSWORD`, `SECRET_KEY`, `CORS_ORIGINS`, `APP_URL`, the three `NEXT_PUBLIC_*`, `WS_ACCEPT_LOGIN_TOKEN`, `FORWARDED_ALLOW_IPS`, `SIGNUP_MAX_ATTEMPTS` |
 
 The three `NEXT_PUBLIC_*` values are baked into the frontend when it starts or is built: restart (or rebuild) after changing
 them.
@@ -172,7 +171,6 @@ reset it), identical requests answered from a cache and never sent twice at once
 A request the provider rejects with an error (for example HTTP 503, or 402 for no credit) is handed back to the budget; a 429
 or a timeout stays counted, because the provider may have done (and billed) the work.
 `GET /sidekick/status` (signed in) shows `used_today` against `daily_budget`, and each real request logs `sidekick: n/budget today`.
-The Docker files don't pass the Sidekick variables through; add them to the compose `environment` if you deploy that way.
 
 **Tests.** The backend tests and the Sidekick Playwright specs never call a real provider. The specs expect canned answers, so they
 skip themselves unless the backend runs with `SIDEKICK_MOCK=1` (set it in your shell or `src/.env` for the e2e run, then
@@ -193,14 +191,13 @@ Teammates then follow [Use a shared backend](#use-a-shared-backend).
 set to. WebSockets pass through a tunnel without extra settings. The tunnel terminates HTTPS, so the backend itself
 stays plain HTTP.
 
-**Backend settings** (in `src/.env`, or the root `.env` for Docker):
+**Backend settings** (in `src/.env`):
 
 ```
-SECRET_KEY=<openssl rand -hex 32>          # optional outside Docker (a random key is made and kept in src/.dev_secret_key); in Docker, never the default
+SECRET_KEY=<openssl rand -hex 32>          # optional (a random key is made and kept in src/.dev_secret_key), but set your own on a shared instance
 CORS_ORIGINS=https://my-app.vercel.app     # the FRONTEND's origin, exactly: scheme + host (+ port), no trailing slash
 APP_URL=https://my-app.vercel.app          # the frontend again; used in password-reset links
 WS_ACCEPT_LOGIN_TOKEN=0                    # WebSockets accept only short-lived tickets
-FORWARDED_ALLOW_IPS=*                      # Docker only, see below
 SIGNUP_MAX_ATTEMPTS=50                     # optional: sign-ups per IP per 15 min (default 5)
 ```
 
@@ -220,11 +217,11 @@ that origin is always allowed. A frontend on any other local port (say `http://l
 for a demo), and repeated failed sign-ins lock that IP and username out for 15 minutes. The backend reads the visitor's IP from the `X-Forwarded-For` header that Cloudflare
 sets, but only from peers it trusts, and by default that is `127.0.0.1`.
 
-- Backend run directly on the same machine as `cloudflared` (`npm run dev:api`): nothing to do.
-- Backend in Docker: its connections arrive from Docker's gateway, not `127.0.0.1`, so every visitor would look like one
-  machine and the sixth sign-up in 15 minutes would be refused for everyone. Set `FORWARDED_ALLOW_IPS=*`. That is safe
-  with the supplied `docker-compose.yml`, which publishes the port on `127.0.0.1` only; if you open the port up, don't
-  use `*`, because anyone who can reach it could forge their IP.
+With the backend on the same machine as `cloudflared` (`npm run dev:api`) there is nothing to do. If you run it somewhere
+`cloudflared` reaches over a network (for example in a container), the connections won't come from `127.0.0.1`, so every
+visitor would look like one machine and the sixth sign-up in 15 minutes would be refused for everyone. Set
+`FORWARDED_ALLOW_IPS` to the proxy's address. Avoid `*` unless the port is reachable only from the proxy, because anyone
+who can reach it could forge their IP.
 
 **Check it from outside.** Run these from another network (a phone hotspot is fine), not from the host itself. They are
 written for a bash-style shell: Git Bash (installed with Git for Windows), macOS or Linux. In PowerShell, write `curl.exe`
@@ -278,16 +275,3 @@ If something is off:
 
 Login tokens are sent in an `Authorization` header and the WebSocket uses a one-minute ticket, so no cookies are
 shared between the frontend and the backend and there are no `SameSite` or `Secure` settings to configure.
-
-## Docker (optional)
-
-If you would rather run everything in containers, with PostgreSQL instead of SQLite:
-
-```
-docker compose up --build
-```
-
-Open <http://localhost:12000>; the API is on <http://localhost:12001>. Postgres and migrations are handled for you, and the
-dev defaults (database password, `SECRET_KEY`) are for local use only. Both ports are published on `127.0.0.1` only, so
-other devices on your network cannot reach them (use the Cloudflare Tunnel above to share an instance). To change settings,
-copy the root `.env.example` to `.env`.
