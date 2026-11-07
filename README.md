@@ -51,9 +51,9 @@ cd app && npm test                                          # unit tests
 cd app && npm run test:e2e                                  # Playwright; starts the frontend itself, the backend must already be running
 ```
 
-Every e2e test signs up a new user, and the backend allows 5 sign-ups per IP per 15 minutes, so the full suite (16 sign-ups)
-cannot pass against one backend process. Restart the backend between spec files, or run one file at a time:
-`npx playwright test e2e/editor.spec.ts`.
+The suite signs up 16 users, and the backend allows 5 sign-ups per IP per 15 minutes by default. Start the backend for
+e2e runs with `SIGNUP_MAX_ATTEMPTS=50` (the forgot-password test also needs `ALLOW_DEV_RESET_LINK=1`, which shows the
+reset link on the page instead of emailing it). With both set, the whole suite passes against one backend process.
 
 ## Configuration
 
