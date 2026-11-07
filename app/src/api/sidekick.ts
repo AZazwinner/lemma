@@ -88,6 +88,27 @@ export const textToLatex = (text: string) =>
 export const explainLatex = (latex: string) =>
     request<ExplainResult>("/sidekick/explain", { method: "POST", body: JSON.stringify({ latex }) })
 
+export type FixResult = { latex: string; why: string; changed: boolean; cached: boolean; mock: boolean }
+export type CheckResult = {
+    ok: boolean
+    /** 1-based, in the order the steps were sent. */
+    step: number | null
+    why: string
+    suggestion: string | null
+    cached: boolean
+    mock: boolean
+}
+export type NextResult = { next: string | null; done: boolean; why: string; cached: boolean; mock: boolean }
+
+export const fixLatex = (latex: string, error: string) =>
+    request<FixResult>("/sidekick/fix", { method: "POST", body: JSON.stringify({ latex, error }) })
+
+export const checkWork = (steps: string[]) =>
+    request<CheckResult>("/sidekick/check", { method: "POST", body: JSON.stringify({ steps }) })
+
+export const suggestNext = (steps: string[]) =>
+    request<NextResult>("/sidekick/next", { method: "POST", body: JSON.stringify({ steps }) })
+
 export type IntoDocResult = { block_id: string; cached: boolean; mock: boolean }
 
 /** Same as textToLatex, but the Sidekick writes the answer into the live document, as a new block after `afterBlockId`. */

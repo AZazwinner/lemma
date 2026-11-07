@@ -76,7 +76,7 @@ export function previewOf(latex: string, max = 90): string {
     return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat
 }
 
-export type Notice = { kind: "busy" | "error"; text: string; retryAfter?: number }
+export type Notice = { kind: "busy" | "error" | "info"; text: string; retryAfter?: number }
 
 export function noticeFor(kind: string, retryAfter?: number): Notice {
     switch (kind) {

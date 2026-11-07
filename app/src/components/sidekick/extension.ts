@@ -1,8 +1,8 @@
-import { EditorView, keymap, ViewPlugin } from "@codemirror/view"
+import { EditorView, keymap, ViewPlugin, type ViewUpdate } from "@codemirror/view"
 import { Prec, type Extension } from "@codemirror/state"
 import { mentionAt } from "@/lib/sidekick-text"
-import { closeSidekickUi, forgetView, runMention, setActiveView } from "@/lib/sidekick"
-import { acceptGhost, clearGhost, getGhost, ghostExtension } from "./ghost"
+import { closeSidekickUi, flagCleared, forgetView, runMention, setActiveView } from "@/lib/sidekick"
+import { acceptGhost, clearTransient, getFlag, getGhost, ghostExtension } from "./ghost"
 
 // Everything the sidekick adds to a block's editor. It is one extension, so the editor only needs a single line.
 //
@@ -20,8 +20,10 @@ const sidekickKeys = Prec.highest(
         {
             key: "Escape",
             run: (view) => {
-                if (clearGhost(view)) return true
-                return closeSidekickUi()
+                // One Esc closes everything the sidekick has up: the suggestion or highlight, and its card or menu.
+                const cleared = clearTransient(view)
+                const closed = closeSidekickUi()
+                return cleared || closed
             },
         },
         {
@@ -58,6 +60,15 @@ function trackFocus(blockId: string) {
     )
 }
 
+// A flagged step that goes away (edited, or dismissed) takes its "Use suggestion" with it.
+const watchFlag = ViewPlugin.fromClass(
+    class {
+        update(update: ViewUpdate) {
+            if (getFlag(update.startState) && !getFlag(update.state)) flagCleared(update.view)
+        }
+    }
+)
+
 export function sidekickExtension(blockId: string): Extension {
-    return [sidekickKeys, ghostExtension, trackFocus(blockId)]
+    return [sidekickKeys, ghostExtension, trackFocus(blockId), watchFlag]
 }

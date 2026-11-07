@@ -7,7 +7,7 @@ import {
     SidekickApiError,
     textToLatex,
 } from "@/api/sidekick"
-import { clearGhost, showGhost, showWorking } from "@/components/sidekick/ghost"
+import { clearFlag, clearGhost, showGhost, showWorking } from "@/components/sidekick/ghost"
 import {
     explainSource,
     explanationText,
@@ -23,8 +23,18 @@ import {
 // The sidekick's client-side state and actions. Every action starts from an explicit user gesture (a menu item, or
 // Ctrl/Cmd+Enter on an "@sidekick" line); nothing here runs on typing or on a timer.
 
-export type Working = "latex" | "explain" | null
+export type Working = "latex" | "explain" | "fix" | "check" | "next" | null
 export type Explanation = { summary: string; steps: string[]; mock: boolean }
+/** The answer to "check my work". `stepRange` is where the flagged step is in the block, so "Use suggestion" can replace it. */
+export type CheckCard = {
+    ok: boolean
+    stepNumber: number | null
+    stepText: string | null
+    stepRange: { from: number; to: number } | null
+    why: string
+    suggestion: string | null
+    mock: boolean
+}
 
 export type SidekickState = {
     /** "unknown" until the status check returns; the button stays hidden unless "ready". */
@@ -35,6 +45,7 @@ export type SidekickState = {
     working: Working
     notice: Notice | null
     explanation: Explanation | null
+    check: CheckCard | null
     menuOpen: boolean
     /** The editor view (one per block) that was last focused. */
     view: EditorView | null
@@ -55,6 +66,7 @@ const initial: SidekickState = {
     working: null,
     notice: null,
     explanation: null,
+    check: null,
     menuOpen: false,
     view: null,
     docId: null,
@@ -89,7 +101,7 @@ export function resetSidekick() {
 function showNotice(notice: Notice) {
     if (noticeTimer) clearTimeout(noticeTimer)
     // The note appears under the icon, so the menu (which would sit on top of it) closes.
-    set({ notice, menuOpen: false, explanation: null })
+    set({ notice, menuOpen: false, explanation: null, check: null })
     const ms = notice.kind === "busy" ? Math.min(Math.max((notice.retryAfter ?? 30) * 1000, 6000), 60_000) : 7000
     noticeTimer = setTimeout(() => set({ notice: null }), ms)
 }
@@ -124,7 +136,8 @@ export async function loadStatus() {
 
 export const setMenuOpen = (menuOpen: boolean) => {
     if (menuOpen && !state.menuOpen) void loadStatusQuietly()
-    set(menuOpen ? { menuOpen } : { menuOpen, explanation: null })
+    if (!menuOpen) dropFlag()
+    set(menuOpen ? { menuOpen } : { menuOpen, explanation: null, check: null })
 }
 
 /** Refreshes the "used today" count when the menu opens. It never touches Google, so it costs no quota. */
@@ -175,11 +188,22 @@ export function forgetView(view: EditorView) {
 
 /** Closes whatever the sidekick has open. Returns true if something was open (so Esc is used up). */
 export function closeSidekickUi(): boolean {
-    if (state.explanation || state.menuOpen) {
-        set({ explanation: null, menuOpen: false })
+    if (state.explanation || state.check || state.menuOpen) {
+        dropFlag()
+        set({ explanation: null, check: null, menuOpen: false })
         return true
     }
     return false
+}
+
+/** The flagged step was edited (or dismissed), so its "Use suggestion" no longer applies. */
+export function flagCleared(view: EditorView) {
+    if (state.view === view && state.check?.stepRange) set({ check: { ...state.check, stepRange: null } })
+}
+
+/** Removes the highlight on a flagged step, if the last-used block has one. */
+function dropFlag() {
+    if (state.view && state.view.dom.isConnected) clearFlag(state.view)
 }
 
 function usableView(): EditorView | null {
@@ -297,4 +321,13 @@ export function runMention(view: EditorView): boolean {
     setActiveView(view)
     void convertToLatex()
     return true
+}
+
+// For sidekick-math.ts, which holds the maths helpers (fix, check, next step) so this file stays readable.
+export {
+    set as patchState,
+    showNotice as notify,
+    showError as notifyError,
+    usableView as focusedView,
+    loadStatusQuietly as refreshUsage,
 }

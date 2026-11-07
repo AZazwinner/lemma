@@ -133,6 +133,34 @@ test("someone with view-only access can't make the Sidekick write", async ({ bro
         await openSidekickMenu(b)
         await expect(b.getByTestId("sidekick-collab-switch")).toHaveCount(0)
         await expect(b.getByRole("button", { name: /Describe → LaTeX/ })).toBeDisabled()
+        await expect(b.getByRole("button", { name: /Fix LaTeX error/ })).toBeDisabled()
+        await expect(b.getByRole("button", { name: /Suggest next step/ })).toBeDisabled()
+    } finally {
+        await a.context().close()
+        await b.context().close()
+    }
+})
+
+test("a flagged step is private to the person who asked, and Use suggestion syncs like a normal edit", async ({ browser }) => {
+    const { a, b } = await twoWriters(browser, "mp_check")
+    try {
+        await focusBlock(a)
+        await a.keyboard.type("2x + 3 = 7")
+        await a.keyboard.press("Shift+Enter")
+        await a.keyboard.type("2x = 5")
+        await expect.poll(() => blockSource(b)).toBe("2x + 3 = 7\n2x = 5")
+
+        await openSidekickMenu(a)
+        await a.getByRole("button", { name: /Check my work/ }).click()
+        await expect(a.locator(".cm-sidekick-flag")).toHaveText("2x = 5")
+
+        // nothing about it reaches B: no highlight, no text change
+        await b.waitForTimeout(600)
+        await expect(b.locator(".cm-sidekick-flag")).toHaveCount(0)
+        expect(await blockSource(b)).toBe("2x + 3 = 7\n2x = 5")
+
+        await a.getByRole("button", { name: /Use suggestion/ }).click()
+        await expect.poll(() => blockSource(b)).toBe("2x + 3 = 7\nx = 2")
     } finally {
         await a.context().close()
         await b.context().close()

@@ -14,6 +14,13 @@ export type GhostSuggestion = {
     insert: string
     /** A short preview shown as the ghost. */
     label: string
+    /** Where the ghost is drawn. Defaults to the end of the range. */
+    at?: number
+    /**
+     * The suggestion stays while the caret is anywhere in this range. Defaults to the replaced range. Suggestions that
+     * insert a line (the next step) use the whole block, since the caret is rarely exactly where the line goes.
+     */
+    scope?: { from: number; to: number }
 }
 
 export type GhostState = { suggestion: GhostSuggestion | null; working: number | null }
@@ -93,7 +100,14 @@ export const ghostField = StateField.define<GhostState>({
                 if (tr.changes.touchesRange(suggestion.from, suggestion.to)) {
                     suggestion = null
                 } else {
-                    suggestion = { ...suggestion, from: tr.changes.mapPos(suggestion.from, -1), to: tr.changes.mapPos(suggestion.to, 1) }
+                    const map = (pos: number, assoc: -1 | 1) => tr.changes.mapPos(pos, assoc)
+                    suggestion = {
+                        ...suggestion,
+                        from: map(suggestion.from, -1),
+                        to: map(suggestion.to, 1),
+                        at: suggestion.at === undefined ? undefined : map(suggestion.at, 1),
+                        scope: suggestion.scope && { from: map(suggestion.scope.from, -1), to: map(suggestion.scope.to, 1) },
+                    }
                 }
             }
             if (working !== null) working = tr.changes.mapPos(working, 1)
@@ -101,7 +115,8 @@ export const ghostField = StateField.define<GhostState>({
 
         if (suggestion && tr.selection) {
             const head = tr.newSelection.main.head
-            if (head < suggestion.from || head > suggestion.to) suggestion = null
+            const scope = suggestion.scope ?? suggestion
+            if (head < scope.from || head > scope.to) suggestion = null
         }
 
         if (suggestion === value.suggestion && working === value.working) return value
@@ -115,7 +130,7 @@ export const ghostField = StateField.define<GhostState>({
                     Decoration.widget({
                         widget: new GhostWidget(`→ ${previewOf(state.suggestion.label)}`, "Tab", acceptGhost, "suggestion"),
                         side: 1,
-                    }).range(state.suggestion.to),
+                    }).range(state.suggestion.at ?? state.suggestion.to),
                 ])
             }
             if (state.working !== null) {
@@ -198,4 +213,56 @@ function hintFor(state: EditorState): DecorationSet {
     ])
 }
 
-export const ghostExtension: Extension = [ghostField, mentionHintField, ghostTheme]
+// A flagged step ("check my work"): a quiet highlight on text that may be wrong. Like the ghost it is only a decoration,
+// so it changes nothing in the document and moves nothing; it goes when the writer edits that text, or on Esc.
+export type Flag = { from: number; to: number }
+export const setFlag = StateEffect.define<Flag | null>()
+
+export const flagField = StateField.define<Flag | null>({
+    create: () => null,
+    update(value, tr) {
+        for (const effect of tr.effects) if (effect.is(setFlag)) value = effect.value
+        if (value && tr.docChanged) {
+            if (tr.changes.touchesRange(value.from, value.to)) return null
+            return { from: tr.changes.mapPos(value.from, -1), to: tr.changes.mapPos(value.to, 1) }
+        }
+        return value
+    },
+    provide: (field) =>
+        EditorView.decorations.from(field, (flag): DecorationSet =>
+            flag && flag.to > flag.from
+                ? Decoration.set([Decoration.mark({ class: "cm-sidekick-flag" }).range(flag.from, flag.to)])
+                : Decoration.none
+        ),
+})
+
+const flagTheme = EditorView.baseTheme({
+    ".cm-sidekick-flag": {
+        textDecoration: "underline wavy",
+        textDecorationColor: "var(--destructive)",
+        textUnderlineOffset: "0.2em",
+        backgroundColor: "color-mix(in oklab, var(--destructive) 12%, transparent)",
+        borderRadius: "0.2em",
+    },
+})
+
+export const getFlag = (state: EditorState): Flag | null => state.field(flagField, false) ?? null
+
+export function flagRange(view: EditorView, from: number, to: number) {
+    view.dispatch({ effects: setFlag.of({ from, to }) })
+}
+
+export function clearFlag(view: EditorView): boolean {
+    if (!getFlag(view.state)) return false
+    view.dispatch({ effects: setFlag.of(null) })
+    return true
+}
+
+/** Dismisses whatever the sidekick is showing in this block: a suggestion, the "Working…" hint, or a flagged step. */
+export function clearTransient(view: EditorView): boolean {
+    const ghostGone = clearGhost(view)
+    const flagGone = clearFlag(view)
+    return ghostGone || flagGone
+}
+
+export const ghostExtension: Extension = [ghostField, flagField, mentionHintField, ghostTheme, flagTheme]

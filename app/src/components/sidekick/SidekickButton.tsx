@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useSyncExternalStore } from "react"
-import { CircleAlert, Clock, Sigma, Sparkles, X } from "lucide-react"
+import { ArrowRight, CircleAlert, Clock, Info, ListChecks, Sigma, Sparkles, Wrench, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -18,6 +18,7 @@ import {
     setMenuOpen,
     subscribe,
 } from "@/lib/sidekick"
+import { applyCheckSuggestion, checkMyWork, fixLatexError, suggestNextStep } from "@/lib/sidekick-math"
 
 // A small icon beside the collaborators' avatars. Closed until clicked; it never opens by itself and its buttons keep
 // the editor's focus (mousedown is not allowed to move it), so the writer's caret and typing are never disturbed.
@@ -84,12 +85,15 @@ export function SidekickButton({ docId, readOnly = false }: { docId: number; rea
                 <div
                     data-testid="sidekick-panel"
                     onMouseDown={keepEditorFocus}
-                    className="absolute right-0 top-full z-50 mt-1.5 w-72 rounded-lg bg-popover p-1.5 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10"
+                    className="absolute right-0 top-full z-50 mt-1.5 max-h-[calc(100vh-5rem)] w-80 overflow-y-auto rounded-lg bg-popover p-1.5 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10"
                 >
-                    {s.explanation || s.working === "explain" ? (
+                    {s.check || s.working === "check" ? (
+                        <CheckCard readOnly={readOnly} />
+                    ) : s.explanation || s.working === "explain" ? (
                         <ExplanationCard readOnly={readOnly} />
                     ) : (
                         <>
+                            <GroupLabel>Write</GroupLabel>
                             <MenuItem
                                 icon={<Sigma className="h-4 w-4" />}
                                 title="Describe → LaTeX"
@@ -107,6 +111,28 @@ export function SidekickButton({ docId, readOnly = false }: { docId: number; rea
                                 hint={collab ? "Sidekick adds the explanation as a new block below" : "Plain language, step by step"}
                                 disabled={working}
                                 onClick={() => void explainEquation()}
+                            />
+                            <GroupLabel>Math help</GroupLabel>
+                            <MenuItem
+                                icon={<Wrench className="h-4 w-4" />}
+                                title="Fix LaTeX error"
+                                hint="Finds an equation that won't render and suggests a repair"
+                                disabled={readOnly || working}
+                                onClick={() => void fixLatexError()}
+                            />
+                            <MenuItem
+                                icon={<ListChecks className="h-4 w-4" />}
+                                title="Check my work"
+                                hint="Marks the first step that doesn't follow, one step per line"
+                                disabled={working}
+                                onClick={() => void checkMyWork()}
+                            />
+                            <MenuItem
+                                icon={<ArrowRight className="h-4 w-4" />}
+                                title="Suggest next step"
+                                hint="A ghost line after your last step"
+                                disabled={readOnly || working}
+                                onClick={() => void suggestNextStep()}
                             />
                             {!readOnly && <CollabSwitch on={s.collab} />}
                             <p className="px-2 pb-1 pt-1.5 text-xs text-muted-foreground">
@@ -131,6 +157,8 @@ export function SidekickButton({ docId, readOnly = false }: { docId: number; rea
                 >
                     {s.notice.kind === "busy" ? (
                         <Clock className="mt-px h-3.5 w-3.5 shrink-0" />
+                    ) : s.notice.kind === "info" ? (
+                        <Info className="mt-px h-3.5 w-3.5 shrink-0" />
                     ) : (
                         <CircleAlert className="mt-px h-3.5 w-3.5 shrink-0" />
                     )}
@@ -142,6 +170,10 @@ export function SidekickButton({ docId, readOnly = false }: { docId: number; rea
             )}
         </div>
     )
+}
+
+function GroupLabel({ children }: { children: React.ReactNode }) {
+    return <p className="px-2 pb-0.5 pt-1.5 text-[0.68rem] font-medium uppercase tracking-wide text-muted-foreground/80">{children}</p>
 }
 
 // Off by default: answers are private suggestions you accept. On, the Sidekick joins the document like another person.
@@ -234,6 +266,53 @@ function ExplanationCard({ readOnly }: { readOnly: boolean }) {
                             {!readOnly && (
                                 <Button type="button" variant="ghost" size="xs" onClick={() => insertExplanation()}>
                                     Insert below
+                                </Button>
+                            )}
+                            <Button type="button" variant="ghost" size="xs" onClick={() => setMenuOpen(false)}>
+                                Close
+                            </Button>
+                        </div>
+                    </div>
+                </>
+            )}
+        </div>
+    )
+}
+
+function CheckCard({ readOnly }: { readOnly: boolean }) {
+    const s = useSyncExternalStore(subscribe, getState, getServerState)
+    const c = s.check
+
+    return (
+        <div data-testid="sidekick-check" className="flex flex-col gap-2 p-1.5">
+            {!c ? (
+                <p className="text-xs text-muted-foreground" aria-live="polite">
+                    Reading your steps…
+                </p>
+            ) : (
+                <>
+                    <p className="font-medium leading-snug">
+                        {c.ok
+                            ? "Every step follows from the one before."
+                            : c.stepNumber !== null
+                              ? `Step ${c.stepNumber} doesn't follow.`
+                              : "Something looks off."}
+                    </p>
+                    {c.stepText && !c.ok && (
+                        <p className="rounded-md bg-muted px-2 py-1 font-mono text-xs leading-snug break-words">{c.stepText}</p>
+                    )}
+                    {c.why && <p className="text-[0.82rem] leading-snug text-muted-foreground">{c.why}</p>}
+                    {c.suggestion && !c.ok && (
+                        <p className="text-[0.82rem] leading-snug text-muted-foreground">
+                            Try: <span className="font-mono text-xs text-foreground">{c.suggestion}</span>
+                        </p>
+                    )}
+                    <div className="flex items-center justify-between gap-2 pt-0.5">
+                        <span className="text-xs text-muted-foreground">{c.mock ? "Demo answer" : "Esc to close"}</span>
+                        <div className="flex gap-1">
+                            {!readOnly && c.suggestion && c.stepRange && !c.ok && (
+                                <Button type="button" variant="ghost" size="xs" onClick={() => applyCheckSuggestion()}>
+                                    Use suggestion
                                 </Button>
                             )}
                             <Button type="button" variant="ghost" size="xs" onClick={() => setMenuOpen(false)}>
