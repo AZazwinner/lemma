@@ -218,7 +218,7 @@ export const AuthCard = ({
                 )
             }
         >
-            <motion.div layout transition={{ duration: 0.35, ease: [0.2, 0.7, 0.2, 1] }} className="relative">
+            <div className="relative">
                 <AnimatePresence mode="wait" initial={false} custom={direction}>
                     <motion.div
                         key={mode}
@@ -233,7 +233,7 @@ export const AuthCard = ({
                             : <Signin handleRedirect={handleRedirect} setMode={setMode} />}
                     </motion.div>
                 </AnimatePresence>
-            </motion.div>
+            </div>
         </AuthCardShell>
     )
 }

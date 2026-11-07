@@ -418,7 +418,7 @@ export default function DocsPage() {
               ) : visibleDocs.length === 0 ? (
                 <EmptyState query={query} tab={tab} onNewDocument={handleNewDocument} />
               ) : (
-                <LayoutGroup>
+                <LayoutGroup id={tab}>
                   {groups.map((group, i) => (
                     <div key={group.label || "flat"}>
                       {group.label && (
