@@ -13,6 +13,8 @@ import {
     insertExplanation,
     loadStatus,
     resetSidekick,
+    setCollab,
+    setDocId,
     setMenuOpen,
     subscribe,
 } from "@/lib/sidekick"
@@ -21,7 +23,7 @@ import {
 // the editor's focus (mousedown is not allowed to move it), so the writer's caret and typing are never disturbed.
 const keepEditorFocus = (e: React.MouseEvent) => e.preventDefault()
 
-export function SidekickButton({ readOnly = false }: { readOnly?: boolean }) {
+export function SidekickButton({ docId, readOnly = false }: { docId: number; readOnly?: boolean }) {
     const s = useSyncExternalStore(subscribe, getState, getServerState)
     const rootRef = useRef<HTMLDivElement>(null)
 
@@ -29,6 +31,10 @@ export function SidekickButton({ readOnly = false }: { readOnly?: boolean }) {
         void loadStatus()
         return () => resetSidekick()
     }, [])
+
+    useEffect(() => {
+        setDocId(docId)
+    }, [docId])
 
     // A click anywhere else closes the menu. It does not stop the click, so the editor still gets it.
     useEffect(() => {
@@ -43,6 +49,7 @@ export function SidekickButton({ readOnly = false }: { readOnly?: boolean }) {
     if (s.availability !== "ready") return null
 
     const working = s.working !== null
+    const collab = s.collab && !readOnly
     const label = working ? "Sidekick is working" : "Sidekick"
 
     return (
@@ -86,17 +93,22 @@ export function SidekickButton({ readOnly = false }: { readOnly?: boolean }) {
                             <MenuItem
                                 icon={<Sigma className="h-4 w-4" />}
                                 title="Describe → LaTeX"
-                                hint="Turns your selection, or this block, into an equation"
+                                hint={
+                                    collab
+                                        ? "Sidekick adds the equation as a new block below"
+                                        : "Turns your selection, or this block, into an equation"
+                                }
                                 disabled={readOnly || working}
                                 onClick={() => void convertToLatex()}
                             />
                             <MenuItem
                                 icon={<Sparkles className="h-4 w-4" />}
                                 title="Explain this equation"
-                                hint="Plain language, step by step"
+                                hint={collab ? "Sidekick adds the explanation as a new block below" : "Plain language, step by step"}
                                 disabled={working}
                                 onClick={() => void explainEquation()}
                             />
+                            {!readOnly && <CollabSwitch on={s.collab} />}
                             <p className="px-2 pb-1 pt-1.5 text-xs text-muted-foreground">
                                 {s.mock ? "Demo mode: canned answers, no AI called. " : ""}
                                 {s.usedToday !== null && s.dailyBudget !== null && !s.mock
@@ -129,6 +141,41 @@ export function SidekickButton({ readOnly = false }: { readOnly?: boolean }) {
                 </div>
             )}
         </div>
+    )
+}
+
+// Off by default: answers are private suggestions you accept. On, the Sidekick joins the document like another person.
+function CollabSwitch({ on }: { on: boolean }) {
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={on}
+            data-testid="sidekick-collab-switch"
+            onClick={() => setCollab(!on)}
+            className="mt-1 flex w-full items-center justify-between gap-3 rounded-md border-t px-2 py-2 text-left hover:bg-accent/50"
+        >
+            <span className="flex flex-col">
+                <span className="text-[0.82rem] font-medium leading-tight">Join as a collaborator</span>
+                <span className="text-xs leading-snug text-muted-foreground">
+                    Writes into the document and shows to everyone, instead of suggesting
+                </span>
+            </span>
+            <span
+                aria-hidden
+                className={cn(
+                    "relative h-4 w-7 shrink-0 rounded-full transition-colors",
+                    on ? "bg-primary" : "bg-muted-foreground/30"
+                )}
+            >
+                <span
+                    className={cn(
+                        "absolute top-0.5 h-3 w-3 rounded-full bg-background transition-all",
+                        on ? "left-[0.875rem]" : "left-0.5"
+                    )}
+                />
+            </span>
+        </button>
     )
 }
 

@@ -71,3 +71,70 @@ test("a sidekick suggestion stays private until it is accepted, then syncs like 
         await b.context().close()
     }
 })
+
+const sidekickInPresence = (page: Page) => page.locator('[title="Sidekick"]')
+const INTEGRAL_BLOCK = "$$\n\\int_0^1 x^2 \\, dx\n$$"
+
+test("the Sidekick joins as a collaborator: it shows in presence, its block reaches both users, then it leaves", async ({ browser }) => {
+    const { a, b } = await twoWriters(browser, "mp_collab")
+    try {
+        await focusBlock(a)
+        await a.keyboard.type("integral of x squared")
+        await expect.poll(() => blockSource(b)).toBe("integral of x squared")
+
+        await openSidekickMenu(a)
+        const toggle = a.getByTestId("sidekick-collab-switch")
+        await expect(toggle).toHaveAttribute("aria-checked", "false") // off unless asked for
+        await toggle.click()
+        await expect(toggle).toHaveAttribute("aria-checked", "true")
+        await a.getByRole("button", { name: /Describe → LaTeX/ }).click()
+
+        // It is in the presence list for both people, as itself...
+        await expect(sidekickInPresence(a)).toBeVisible()
+        await expect(sidekickInPresence(b)).toBeVisible()
+        // ...and what it writes is an ordinary synced block, right after the writer's, with no ghost involved.
+        await expect.poll(() => blockSource(b, 1)).toBe(INTEGRAL_BLOCK)
+        await expect.poll(() => blockSource(a, 1)).toBe(INTEGRAL_BLOCK)
+        expect(await blockSource(a, 0)).toBe("integral of x squared")
+        await expect(ghost(a)).toHaveCount(0)
+        // its caret is in the block it wrote, labelled with its name
+        await expect(b.locator('[data-block-index="1"] .cm-ySelectionInfo', { hasText: "Sidekick" })).toHaveCount(1)
+
+        // people keep editing alongside it
+        await focusBlock(b)
+        await b.keyboard.press("Control+End")
+        await b.keyboard.type(" (B)")
+        await expect.poll(() => blockSource(a, 0)).toContain("(B)")
+
+        // it does not stay: a few seconds after it finishes it is gone from both lists
+        await expect(sidekickInPresence(a)).toHaveCount(0, { timeout: 20_000 })
+        await expect(sidekickInPresence(b)).toHaveCount(0, { timeout: 20_000 })
+
+        // and its block was saved like any other
+        await b.reload({ waitUntil: "networkidle" })
+        await expect.poll(() => blockSource(b, 1)).toBe(INTEGRAL_BLOCK)
+    } finally {
+        await a.context().close()
+        await b.context().close()
+    }
+})
+
+test("someone with view-only access can't make the Sidekick write", async ({ browser }) => {
+    const a = await (await browser.newContext()).newPage()
+    const b = await (await browser.newContext()).newPage()
+    try {
+        await signUp(a, "mp_ro_a")
+        const url = await openNewDoc(a)
+        await signUp(b, "mp_ro_b")
+        await shareDoc(a, await currentUserId(b), "read")
+        await b.goto(url, { waitUntil: "networkidle" })
+        await b.waitForTimeout(1000)
+
+        await openSidekickMenu(b)
+        await expect(b.getByTestId("sidekick-collab-switch")).toHaveCount(0)
+        await expect(b.getByRole("button", { name: /Describe → LaTeX/ })).toBeDisabled()
+    } finally {
+        await a.context().close()
+        await b.context().close()
+    }
+})

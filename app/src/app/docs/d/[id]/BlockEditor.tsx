@@ -377,7 +377,7 @@ export function BlockEditor({
         const state = EditorState.create({
             doc: text.toString(),
             extensions: [
-                sidekickExtension(),
+                sidekickExtension(id),
                 blockKeymap,
 
                 Prec.highest(keymap.of(yUndoManagerKeymap)),

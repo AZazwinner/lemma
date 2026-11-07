@@ -87,6 +87,10 @@ export function noticeFor(kind: string, retryAfter?: number): Notice {
         }
         case "disabled":
             return { kind: "error", text: "Sidekick is switched off on this server." }
+        case "forbidden":
+            return { kind: "error", text: "You can't edit this document, so the sidekick can't add to it." }
+        case "not-open":
+            return { kind: "error", text: "The document isn't connected yet. Try again in a moment." }
         case "signed-out":
             return { kind: "error", text: "Sign in again to use the sidekick." }
         case "network":

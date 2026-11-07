@@ -179,7 +179,7 @@ export default function DocPage() {
         <div className="flex items-center gap-3">
           <PresenceStack users={presence} />
 
-          <SidekickButton readOnly={isReadOnly} />
+          <SidekickButton docId={Number(id)} readOnly={isReadOnly} />
 
           <ThemeToggle />
 

@@ -1,5 +1,12 @@
 import type { EditorView } from "@codemirror/view"
-import { explainLatex, fetchSidekickStatus, SidekickApiError, textToLatex } from "@/api/sidekick"
+import {
+    explainIntoDoc,
+    explainLatex,
+    fetchSidekickStatus,
+    latexIntoDoc,
+    SidekickApiError,
+    textToLatex,
+} from "@/api/sidekick"
 import { clearGhost, showGhost, showWorking } from "@/components/sidekick/ghost"
 import {
     explainSource,
@@ -31,6 +38,13 @@ export type SidekickState = {
     menuOpen: boolean
     /** The editor view (one per block) that was last focused. */
     view: EditorView | null
+    /** The document this button belongs to, for collaborator mode. */
+    docId: number | null
+    /**
+     * Collaborator mode: instead of a private suggestion, the Sidekick joins the document like another person and
+     * writes its answer in as a new block. Off unless the person turns it on.
+     */
+    collab: boolean
 }
 
 const initial: SidekickState = {
@@ -43,6 +57,8 @@ const initial: SidekickState = {
     explanation: null,
     menuOpen: false,
     view: null,
+    docId: null,
+    collab: false,
 }
 
 let state: SidekickState = initial
@@ -94,6 +110,7 @@ export async function loadStatus() {
         const status = await fetchSidekickStatus()
         set({
             availability: status.enabled ? "ready" : "off",
+            collab: readCollabPreference(),
             mock: status.mock,
             usedToday: status.used_today,
             dailyBudget: status.daily_budget,
@@ -120,9 +137,36 @@ async function loadStatusQuietly() {
     }
 }
 
-export function setActiveView(view: EditorView | null) {
+// Which block each editor view is, so the Sidekick can put its block right after the one the writer is in.
+const blockIds = new WeakMap<EditorView, string>()
+
+export function setActiveView(view: EditorView | null, blockId?: string) {
+    if (view && blockId) blockIds.set(view, blockId)
     if (view === state.view) return
     set({ view })
+}
+
+const COLLAB_KEY = "sidekick.collab"
+
+export function setDocId(docId: number | null) {
+    set({ docId })
+}
+
+export function setCollab(collab: boolean) {
+    set({ collab })
+    try {
+        localStorage.setItem(COLLAB_KEY, collab ? "1" : "0")
+    } catch {
+        // a remembered preference is a nicety; the switch still works for this visit
+    }
+}
+
+function readCollabPreference(): boolean {
+    try {
+        return localStorage.getItem(COLLAB_KEY) === "1"
+    } catch {
+        return false
+    }
 }
 
 export function forgetView(view: EditorView) {
@@ -173,6 +217,13 @@ export async function convertToLatex(): Promise<void> {
     clearGhost(view)
     showWorking(view, source.to)
     try {
+        if (state.collab && state.docId !== null) {
+            // The Sidekick joins the document and writes a block after this one. The block reaches this editor, and
+            // everyone else's, as an ordinary synced edit, so there is nothing to show here but the quiet "Working…".
+            await latexIntoDoc(state.docId, source.text, blockIds.get(view))
+            if (view.dom.isConnected) clearGhost(view)
+            return
+        }
         const result = await textToLatex(source.text)
         if (!view.dom.isConnected || !isUnchanged(view.state.doc.toString(), source)) {
             // The text moved or changed while the sidekick was thinking. Don't second-guess the writer.
@@ -211,8 +262,13 @@ export async function explainEquation(): Promise<void> {
         return
     }
 
-    set({ working: "explain", explanation: null, menuOpen: true })
+    const collab = state.collab && state.docId !== null && !view.state.readOnly
+    set({ working: "explain", explanation: null, menuOpen: !collab })
     try {
+        if (collab) {
+            await explainIntoDoc(state.docId as number, text, blockIds.get(view))
+            return
+        }
         const result = await explainLatex(text)
         set({ explanation: { summary: result.summary, steps: result.steps, mock: result.mock } })
     } catch (error) {

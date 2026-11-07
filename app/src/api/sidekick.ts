@@ -15,7 +15,15 @@ export type SidekickStatus = {
 export type LatexResult = { latex: string; cached: boolean; mock: boolean }
 export type ExplainResult = { summary: string; steps: string[]; cached: boolean; mock: boolean }
 
-export type SidekickErrorKind = "busy" | "disabled" | "signed-out" | "upstream" | "network" | "invalid"
+export type SidekickErrorKind =
+    | "busy"
+    | "disabled"
+    | "signed-out"
+    | "forbidden"
+    | "not-open"
+    | "upstream"
+    | "network"
+    | "invalid"
 
 export class SidekickApiError extends Error {
     kind: SidekickErrorKind
@@ -38,7 +46,9 @@ export function errorFromResponse(status: number, body: unknown, retryAfterHeade
         return new SidekickApiError("busy", fromBody ?? (Number.isFinite(fromHeader) ? fromHeader : undefined))
     }
     if (status === 503) return new SidekickApiError("disabled")
-    if (status === 401 || status === 403) return new SidekickApiError("signed-out")
+    if (status === 401) return new SidekickApiError("signed-out")
+    if (status === 403) return new SidekickApiError("forbidden")
+    if (status === 409) return new SidekickApiError("not-open")
     if (status === 422) return new SidekickApiError("invalid")
     return new SidekickApiError("upstream")
 }
@@ -77,3 +87,18 @@ export const textToLatex = (text: string) =>
 
 export const explainLatex = (latex: string) =>
     request<ExplainResult>("/sidekick/explain", { method: "POST", body: JSON.stringify({ latex }) })
+
+export type IntoDocResult = { block_id: string; cached: boolean; mock: boolean }
+
+/** Same as textToLatex, but the Sidekick writes the answer into the live document, as a new block after `afterBlockId`. */
+export const latexIntoDoc = (docId: number, text: string, afterBlockId?: string) =>
+    request<IntoDocResult>(`/sidekick/docs/${docId}/latex`, {
+        method: "POST",
+        body: JSON.stringify({ text, after_block_id: afterBlockId ?? null }),
+    })
+
+export const explainIntoDoc = (docId: number, latex: string, afterBlockId?: string) =>
+    request<IntoDocResult>(`/sidekick/docs/${docId}/explain`, {
+        method: "POST",
+        body: JSON.stringify({ latex, after_block_id: afterBlockId ?? null }),
+    })

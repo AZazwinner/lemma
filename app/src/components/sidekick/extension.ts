@@ -36,25 +36,28 @@ const sidekickKeys = Prec.highest(
     ])
 )
 
-// Tells the sidekick which block the writer is in, so the toolbar button acts on it.
-const trackFocus = ViewPlugin.fromClass(
-    class {
-        constructor(readonly view: EditorView) {
-            if (view.hasFocus) setActiveView(view)
-        }
-        destroy() {
-            forgetView(this.view)
-        }
-    },
-    {
-        eventHandlers: {
-            focus(_event, view) {
-                setActiveView(view)
-            },
+// Tells the sidekick which block the writer is in, so the toolbar button acts on it (and, in collaborator mode, knows
+// which block to write after).
+function trackFocus(blockId: string) {
+    return ViewPlugin.fromClass(
+        class {
+            constructor(readonly view: EditorView) {
+                if (view.hasFocus) setActiveView(view, blockId)
+            }
+            destroy() {
+                forgetView(this.view)
+            }
         },
-    }
-)
+        {
+            eventHandlers: {
+                focus(_event, view) {
+                    setActiveView(view, blockId)
+                },
+            },
+        }
+    )
+}
 
-export function sidekickExtension(): Extension {
-    return [sidekickKeys, ghostExtension, trackFocus]
+export function sidekickExtension(blockId: string): Extension {
+    return [sidekickKeys, ghostExtension, trackFocus(blockId)]
 }

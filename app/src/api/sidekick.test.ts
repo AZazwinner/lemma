@@ -11,6 +11,8 @@ describe("errorFromResponse", () => {
     it("maps the other statuses", () => {
         expect(errorFromResponse(503, null).kind).toBe("disabled")
         expect(errorFromResponse(401, null).kind).toBe("signed-out")
+        expect(errorFromResponse(403, null).kind).toBe("forbidden")
+        expect(errorFromResponse(409, null).kind).toBe("not-open")
         expect(errorFromResponse(422, null).kind).toBe("invalid")
         expect(errorFromResponse(502, null).kind).toBe("upstream")
         expect(errorFromResponse(500, null).kind).toBe("upstream")

@@ -1,11 +1,14 @@
 "use client"
 
+import { Sparkles } from "lucide-react"
 import { initialsForName } from "@/lib/user-color"
 
 export type PresentUser = {
   clientId: number
   name: string
   color: string
+  /** "ai" for the Sidekick, which shows a sparkle instead of initials. */
+  kind?: string
 }
 
 
@@ -24,7 +27,7 @@ export function PresenceStack({ users }: { users: PresentUser[] }) {
           className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[11px] font-medium text-white dark:border-neutral-950"
           style={{ backgroundColor: u.color }}
         >
-          {initialsForName(u.name)}
+          {u.kind === "ai" ? <Sparkles className="h-3.5 w-3.5" aria-hidden /> : initialsForName(u.name)}
         </div>
       ))}
       {overflow > 0 && (
