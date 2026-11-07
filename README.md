@@ -50,6 +50,10 @@ cd app && npm test                                          # unit tests
 cd app && npm run test:e2e                                  # Playwright; starts the frontend itself, the backend must already be running
 ```
 
+Every e2e test signs up a new user, and the backend allows 5 sign-ups per IP per 15 minutes, so the full suite (16 sign-ups)
+cannot pass against one backend process. Restart the backend between spec files, or run one file at a time:
+`npx playwright test e2e/editor.spec.ts`.
+
 ## Configuration
 
 Everything has a working default for local development. Copy the relevant `.env.example` and uncomment what you change:
