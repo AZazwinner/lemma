@@ -44,6 +44,11 @@ def thinking_level() -> str:
     return os.getenv("GEMINI_THINKING_LEVEL", "").strip()
 
 
+def timeout_seconds() -> int:
+    """How long to wait for Google. Large models can take 30s or more to answer even a short prompt."""
+    return _positive_int("SIDEKICK_TIMEOUT_SECONDS", 60)
+
+
 def mock_requested() -> bool | None:
     """True/False if SIDEKICK_MOCK says so explicitly, None if it is unset."""
     raw = os.getenv("SIDEKICK_MOCK", "").strip().lower()

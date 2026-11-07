@@ -9,7 +9,6 @@ import re
 
 from modules.sidekick import config
 
-REQUEST_TIMEOUT_MS = 25_000
 DEFAULT_RETRY_AFTER = 30
 
 
@@ -68,7 +67,7 @@ async def generate(system: str, contents, *, max_output_tokens: int, vision: boo
         "system_instruction": system,
         "max_output_tokens": max_output_tokens,
         "http_options": types.HttpOptions(
-            timeout=REQUEST_TIMEOUT_MS,
+            timeout=config.timeout_seconds() * 1000,
             # One attempt: a retry is a second request against a small quota.
             retry_options=types.HttpRetryOptions(attempts=1),
         ),
