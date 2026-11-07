@@ -15,6 +15,8 @@ describe("errorFromResponse", () => {
         expect(errorFromResponse(409, null).kind).toBe("not-open")
         expect(errorFromResponse(422, null).kind).toBe("invalid")
         expect(errorFromResponse(502, null).kind).toBe("upstream")
+        expect(errorFromResponse(502, { detail: { code: "upstream_error", reason: "HTTP 503" } }).reason).toBe("HTTP 503")
+        expect(errorFromResponse(502, { detail: { reason: 5 } }).reason).toBeUndefined()
         expect(errorFromResponse(500, null).kind).toBe("upstream")
     })
 })

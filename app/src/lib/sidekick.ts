@@ -113,7 +113,7 @@ export function dismissNotice() {
 }
 
 function showError(error: unknown) {
-    if (error instanceof SidekickApiError) showNotice(noticeFor(error.kind, error.retryAfter))
+    if (error instanceof SidekickApiError) showNotice(noticeFor(error.kind, error.retryAfter, error.reason))
     else showNotice(noticeFor("upstream"))
 }
 

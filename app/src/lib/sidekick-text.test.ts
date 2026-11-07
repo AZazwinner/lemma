@@ -92,6 +92,14 @@ describe("noticeFor", () => {
         expect(noticeFor("busy").text).toContain("30s")
     })
 
+    it("says what went wrong when Google failed, using only the short reason", () => {
+        expect(noticeFor("upstream", undefined, "HTTP 504").text).toContain("too long")
+        expect(noticeFor("upstream", undefined, "HTTP 503").text).toContain("HTTP 503")
+        expect(noticeFor("upstream", undefined, "HTTP 404").text).toContain("rejected")
+        expect(noticeFor("upstream", undefined, "something else entirely").text).toBe("The sidekick couldn't answer. Try again.")
+        expect(noticeFor("upstream").text).toBe("The sidekick couldn't answer. Try again.")
+    })
+
     it("never leaks details for other failures", () => {
         for (const kind of ["disabled", "signed-out", "network", "invalid", "upstream", "whatever"]) {
             expect(noticeFor(kind).kind).toBe("error")

@@ -37,7 +37,10 @@ def _translate(error: Exception) -> HTTPException:
             detail={"code": "busy", "message": "The sidekick is busy. Try again soon.", "retry_after": error.retry_after},
             headers={"Retry-After": str(error.retry_after)},
         )
-    return HTTPException(502, detail={"code": "upstream_error", "message": "The sidekick couldn't answer. Try again."})
+    reason = getattr(error, "reason", "")
+    return HTTPException(
+        502, detail={"code": "upstream_error", "message": "The sidekick couldn't answer. Try again.", "reason": reason}
+    )
 
 
 @router.get("/status", response_model=StatusResponse)

@@ -1,7 +1,8 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-// The backend waits up to a minute for Google, and large models can take half that to answer.
-const TIMEOUT_MS = 75_000
+// The backend waits up to SIDEKICK_TIMEOUT_SECONDS (default 100, at most 120) for Google, and a large model can take over
+// a minute to answer. This is longer than any of those, so the backend's own answer (even an error) arrives first.
+const TIMEOUT_MS = 130_000
 
 export type SidekickStatus = {
     enabled: boolean
@@ -29,17 +30,20 @@ export class SidekickApiError extends Error {
     kind: SidekickErrorKind
     /** Seconds, for "busy". */
     retryAfter?: number
+    /** A short, safe reason for "upstream" errors, such as "HTTP 503". */
+    reason?: string
 
-    constructor(kind: SidekickErrorKind, retryAfter?: number) {
+    constructor(kind: SidekickErrorKind, retryAfter?: number, reason?: string) {
         super(kind)
         this.kind = kind
         this.retryAfter = retryAfter
+        this.reason = reason
     }
 }
 
 /** Maps a failed response to an error kind. Exported for tests. */
 export function errorFromResponse(status: number, body: unknown, retryAfterHeader?: string | null): SidekickApiError {
-    const detail = (body as { detail?: { code?: string; retry_after?: number } } | null)?.detail
+    const detail = (body as { detail?: { code?: string; retry_after?: number; reason?: string } } | null)?.detail
     if (status === 429) {
         const fromBody = typeof detail?.retry_after === "number" ? detail.retry_after : undefined
         const fromHeader = retryAfterHeader ? Number(retryAfterHeader) : undefined
@@ -50,7 +54,7 @@ export function errorFromResponse(status: number, body: unknown, retryAfterHeade
     if (status === 403) return new SidekickApiError("forbidden")
     if (status === 409) return new SidekickApiError("not-open")
     if (status === 422) return new SidekickApiError("invalid")
-    return new SidekickApiError("upstream")
+    return new SidekickApiError("upstream", undefined, typeof detail?.reason === "string" ? detail.reason : undefined)
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

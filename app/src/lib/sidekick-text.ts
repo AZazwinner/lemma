@@ -78,7 +78,16 @@ export function previewOf(latex: string, max = 90): string {
 
 export type Notice = { kind: "busy" | "error" | "info"; text: string; retryAfter?: number }
 
-export function noticeFor(kind: string, retryAfter?: number): Notice {
+/** What to tell the writer when Google failed, from the short reason the backend gives ("HTTP 504", "HTTP 503", ...). */
+function upstreamText(reason?: string): string {
+    const status = reason?.match(/^HTTP (\d{3})$/)?.[1]
+    if (status === "504") return "Google took too long to answer. Try again, or pick a faster model."
+    if (status && status.startsWith("5")) return `Google had a problem (HTTP ${status}). Try again in a moment.`
+    if (status) return `Google rejected the request (HTTP ${status}). Check the model and key on the server.`
+    return "The sidekick couldn't answer. Try again."
+}
+
+export function noticeFor(kind: string, retryAfter?: number, reason?: string): Notice {
     switch (kind) {
         case "busy": {
             const wait = retryAfter && retryAfter > 0 ? retryAfter : 30
@@ -98,6 +107,6 @@ export function noticeFor(kind: string, retryAfter?: number): Notice {
         case "invalid":
             return { kind: "error", text: "That text is too long or empty for the sidekick." }
         default:
-            return { kind: "error", text: "The sidekick couldn't answer. Try again." }
+            return { kind: "error", text: upstreamText(reason) }
     }
 }

@@ -21,6 +21,7 @@ import pycrdt
 from fastapi import HTTPException
 
 from db.database import run_in_db
+from modules.sidekick import config
 from db.modules.docs.services import user_can_write_document
 from db.modules.liveshare.backfill import BLOCKS_KEY
 from db.modules.liveshare.ydoc_room import YRoom, registry
@@ -35,8 +36,8 @@ LINGER_SECONDS = 8
 HEARTBEAT_SECONDS = 10
 # How often it looks at the clock to see whether it should go. Cheap, and keeps "leave in 8 seconds" accurate.
 CHECK_SECONDS = 0.5
-# The longest a single request can take (Google timeout plus a margin), so a crashed request can't leave it hanging around.
-MAX_WORK_SECONDS = 90
+# Extra seconds on top of the Google timeout that it may stay while working, so a crashed request can't leave it hanging around.
+WORK_MARGIN_SECONDS = 15
 
 _ORIGIN = object()
 
@@ -144,7 +145,7 @@ async def require_room(doc_id: int, user_id: int) -> YRoom:
 
 
 def working(room: YRoom) -> None:
-    presence_for(room).stay(MAX_WORK_SECONDS)
+    presence_for(room).stay(config.timeout_seconds() + WORK_MARGIN_SECONDS)
 
 
 def done(room: YRoom, linger: float | None = None) -> None:

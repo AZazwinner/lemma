@@ -135,6 +135,16 @@ def test_daily_usage_survives_a_restart():
     assert DailyUsage().used_today() == 2
 
 
+def test_daily_usage_refund_never_goes_below_zero():
+    counter = DailyUsage()
+    counter.refund()
+    assert counter.used_today() == 0
+    counter.try_reserve(5)
+    counter.refund()
+    counter.refund()
+    assert counter.used_today() == 0
+
+
 def test_daily_usage_starts_over_on_a_new_day(monkeypatch):
     from modules.sidekick import usage as usage_module
 
@@ -349,13 +359,45 @@ def test_a_google_429_becomes_busy_and_pauses_further_calls(client, token, monke
     assert len(calls) == 1  # the second request never reached Google
 
 
-def test_other_google_failures_give_a_generic_502(client, token, monkeypatch):
+def test_other_google_failures_give_a_502_with_a_short_safe_reason(client, token, monkeypatch):
     go_live(monkeypatch)
     fake_generate(monkeypatch, error=gemini.GeminiError("HTTP 500"))
     resp = client.post("/sidekick/latex", json={"text": "a"}, headers=auth(token))
     assert resp.status_code == 502
-    assert resp.json()["detail"]["code"] == "upstream_error"
-    assert "500" not in resp.text
+    detail = resp.json()["detail"]
+    assert detail["code"] == "upstream_error" and detail["reason"] == "HTTP 500"
+    assert SECRET not in resp.text
+
+
+def test_a_request_google_rejected_is_handed_back_to_the_budget(client, token, monkeypatch):
+    go_live(monkeypatch)
+    monkeypatch.setenv("SIDEKICK_USER_PER_MINUTE", "50")
+    fake_generate(monkeypatch, error=gemini.GeminiError("HTTP 503"))
+    for _ in range(3):
+        assert client.post("/sidekick/latex", json={"text": "a"}, headers=auth(token)).status_code == 502
+    assert usage.used_today() == 0
+
+
+def test_a_timeout_stays_counted_because_google_may_have_finished_it(client, token, monkeypatch):
+    go_live(monkeypatch)
+    fake_generate(monkeypatch, error=gemini.GeminiError("HTTP 504"))
+    assert client.post("/sidekick/latex", json={"text": "a"}, headers=auth(token)).status_code == 502
+    assert usage.used_today() == 1
+
+
+def test_a_google_429_stays_counted(client, token, monkeypatch):
+    go_live(monkeypatch)
+    fake_generate(monkeypatch, error=gemini.GeminiBusy(10))
+    assert client.post("/sidekick/latex", json={"text": "a"}, headers=auth(token)).status_code == 429
+    assert usage.used_today() == 1
+
+
+def test_the_google_timeout_is_generous_and_capped(monkeypatch):
+    assert config.timeout_seconds() == 100
+    monkeypatch.setenv("SIDEKICK_TIMEOUT_SECONDS", "30")
+    assert config.timeout_seconds() == 30
+    monkeypatch.setenv("SIDEKICK_TIMEOUT_SECONDS", "9999")
+    assert config.timeout_seconds() == config.MAX_TIMEOUT_SECONDS
 
 
 class FakeModels:

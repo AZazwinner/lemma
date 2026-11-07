@@ -44,9 +44,12 @@ def thinking_level() -> str:
     return os.getenv("GEMINI_THINKING_LEVEL", "").strip()
 
 
+MAX_TIMEOUT_SECONDS = 120
+
+
 def timeout_seconds() -> int:
-    """How long to wait for Google. Large models can take 30s or more to answer even a short prompt."""
-    return _positive_int("SIDEKICK_TIMEOUT_SECONDS", 60)
+    """How long to wait for Google. A 31B model took 78 seconds to answer one short prompt, so the default is generous. Capped at MAX_TIMEOUT_SECONDS, because the browser stops waiting shortly after that."""
+    return min(_positive_int("SIDEKICK_TIMEOUT_SECONDS", 100), MAX_TIMEOUT_SECONDS)
 
 
 def mock_requested() -> bool | None:

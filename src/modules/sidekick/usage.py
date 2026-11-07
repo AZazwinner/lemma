@@ -80,6 +80,14 @@ class DailyUsage:
             self._load(_now().date())
             return self._count
 
+    def refund(self) -> None:
+        """Gives back one request that Google answered with an error, so a failure doesn't eat the day's budget."""
+        with self._lock:
+            self._load(_now().date())
+            if self._count > 0:
+                self._count -= 1
+                self._save()
+
     def try_reserve(self, budget: int) -> int | None:
         """Counts one request if the budget allows, returning the new count, or None if today's budget is spent."""
         with self._lock:

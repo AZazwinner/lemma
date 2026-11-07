@@ -26,7 +26,11 @@ class SidekickBusy(Exception):
 
 
 class SidekickUpstreamError(Exception):
-    pass
+    """Google (or the answer) failed. `reason` is a short, safe description such as "HTTP 503": never Google's own message."""
+
+    def __init__(self, reason: str = ""):
+        super().__init__(reason)
+        self.reason = reason
 
 
 user_limiter = SlidingWindowLimiter(window=60.0)
@@ -113,6 +117,10 @@ async def _run(
             raise SidekickBusy(e.retry_after, "Google quota") from None
         except gemini.GeminiError as e:
             print(f"sidekick: {feature} failed: {e.reason}")
+            # Google answered with an error status, so it didn't do the work: hand the request back. A timeout (504)
+            # is different, since Google may well have finished it, and it stays counted.
+            if current_mode == "live" and e.reason.startswith("HTTP ") and e.reason != "HTTP 504":
+                usage.refund()
             raise SidekickUpstreamError(e.reason) from None
     except asyncio.CancelledError:
         future.cancel()

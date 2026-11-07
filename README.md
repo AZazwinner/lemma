@@ -154,7 +154,7 @@ Click the sparkle icon beside the collaborator avatars (it stays closed until yo
 | `SIDEKICK_USER_PER_MINUTE` | Requests one user can make per minute (default 5). |
 | `SIDEKICK_DAILY_BUDGET` | Real API requests per day, all users together (default 200). Keep it below your model's free daily limit. |
 | `SIDEKICK_CACHE_SECONDS` | How long an identical request is answered from memory (default 300). |
-| `SIDEKICK_TIMEOUT_SECONDS` | How long to wait for Google (default 60). A 31B model took 20 to 30 seconds per answer in testing. |
+| `SIDEKICK_TIMEOUT_SECONDS` | How long to wait for Google (default 100, at most 120). In testing, `gemma-4-31b-it` took 26 to 78 seconds per answer because it reasons before answering; `gemma-4-26b-a4b-it` (same free daily limit) took 5 to 13 seconds. |
 
 **Mock mode** returns canned answers and makes no API calls, so you can build UI without spending quota. In mock mode, text
 containing `__busy__` returns the "busy, try again" response and `__error__` returns the generic error, to test those states.
@@ -163,6 +163,8 @@ For Check my work, `__ok__` in the steps means "every step follows"; for Suggest
 **Quota.** The free tier is small, so the backend protects it: a per-user limit, a daily budget counted per Pacific day
 (Google's quota resets at midnight Pacific; the count is kept in the gitignored `src/.sidekick_usage` so a restart doesn't
 reset it), identical requests answered from a cache and never sent twice at once, and a pause after Google answers 429.
+A request Google rejects with an error (for example HTTP 503) is handed back to the budget; a 429 or a timeout stays counted,
+because Google may have done the work.
 `GET /sidekick/status` (signed in) shows `used_today` against `daily_budget`, and each real request logs `sidekick: n/budget today`.
 The Docker files don't pass the Sidekick variables through; add them to the compose `environment` if you deploy that way.
 
