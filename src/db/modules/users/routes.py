@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from db.core.auth import mailer
 from db.core.auth.mailer import send_password_reset_email
-from db.core.auth.rate_limit import is_locked_out, record_failure, record_success
+from db.core.auth.rate_limit import is_locked_out, record_failure, record_success, signup_max_attempts
 from db.core.auth.schemas import AuthUserCreate__Password, AuthUserUpdate__Password
 from db.core.auth.services import request_password_reset, reset_password_with_token, update_authuser__password
 from db.core.auth.utils.token import create_access_token, create_ws_ticket
@@ -37,7 +37,7 @@ def create_user__password_route(
             status_code=429,
             detail=f"Too many signup attempts. Try again in {int(retry_after) // 60 + 1} minute(s).",
         )
-    record_failure(throttle_key)
+    record_failure(throttle_key, signup_max_attempts())
 
     return create_user__password(data, db)
 

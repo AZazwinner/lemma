@@ -30,7 +30,7 @@ else:
 
 os.environ["SECRET_KEY"] = "test-secret-key-do-not-use-in-production"
 os.environ["CORS_ORIGINS"] = ""
-for _name in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_PORT", "SMTP_FROM", "ALLOW_DEV_RESET_LINK"):
+for _name in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_PORT", "SMTP_FROM", "ALLOW_DEV_RESET_LINK", "SIGNUP_MAX_ATTEMPTS"):
     os.environ.pop(_name, None)
 
 from sqlalchemy import text

@@ -1,3 +1,6 @@
+import pytest
+
+
 def signup(client, username="alice", email="alice@example.com", password="password123"):
     return client.post(
         "/create-user",
@@ -37,6 +40,39 @@ def test_signup_is_rate_limited_per_ip(client):
         resp = signup(client, username=f"user{i}", email=f"user{i}@example.com")
         assert resp.status_code == 200
     resp = signup(client, username="user5", email="user5@example.com")
+    assert resp.status_code == 429
+
+
+def _signups_until_throttled(client, ceiling=60):
+    """How many sign-ups from one IP succeed before the backend answers 429."""
+    for i in range(ceiling):
+        if signup(client, username=f"user{i}", email=f"user{i}@example.com").status_code == 429:
+            return i
+    return ceiling
+
+
+def test_signup_limit_can_be_raised_with_an_env_var(client, monkeypatch):
+    monkeypatch.setenv("SIGNUP_MAX_ATTEMPTS", "8")
+    assert _signups_until_throttled(client) == 8
+
+
+def test_signup_limit_can_be_lowered_with_an_env_var(client, monkeypatch):
+    monkeypatch.setenv("SIGNUP_MAX_ATTEMPTS", "2")
+    assert _signups_until_throttled(client) == 2
+
+
+@pytest.mark.parametrize("bad_value", ["abc", "0", "-3", "2.5", "  "])
+def test_a_bad_signup_limit_falls_back_to_the_default(client, monkeypatch, bad_value):
+    monkeypatch.setenv("SIGNUP_MAX_ATTEMPTS", bad_value)
+    assert _signups_until_throttled(client) == 5
+
+
+def test_raising_the_signup_limit_does_not_loosen_the_signin_lockout(client, monkeypatch):
+    monkeypatch.setenv("SIGNUP_MAX_ATTEMPTS", "50")
+    signup(client)
+    for _ in range(5):
+        client.post("/signin", json={"username": "alice", "password": "wrong-password"})
+    resp = client.post("/signin", json={"username": "alice", "password": "password123"})
     assert resp.status_code == 429
 
 

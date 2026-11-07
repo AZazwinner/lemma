@@ -21,6 +21,80 @@ def test_not_locked_out_before_the_first_attempt(limiter):
     assert locked is False
 
 
+def test_a_custom_limit_applies_to_that_call_only(limiter):
+    rl.record_failure("custom", max_attempts=2)
+    assert rl.is_locked_out("custom")[0] is False
+    rl.record_failure("custom", max_attempts=2)
+    assert rl.is_locked_out("custom")[0] is True
+
+    for _ in range(rl.MAX_ATTEMPTS - 1):
+        rl.record_failure("default")
+    assert rl.is_locked_out("default")[0] is False
+
+
+class FakeValkey:
+    """Just enough of a Valkey client for the limiter's commands, so the Valkey code path runs without a server."""
+
+    def __init__(self):
+        self.sorted_sets: dict[str, dict[str, float]] = {}
+        self.plain: dict[str, int] = {}
+
+    def pipeline(self):
+        return FakePipeline(self)
+
+    def pttl(self, key):
+        return 900_000 if key in self.plain else -2
+
+    def delete(self, *keys):
+        for key in keys:
+            self.plain.pop(key, None)
+            self.sorted_sets.pop(key, None)
+
+
+class FakePipeline:
+    def __init__(self, client):
+        self.client, self.ops = client, []
+
+    def zremrangebyscore(self, key, low, high):
+        entries = self.client.sorted_sets.setdefault(key, {})
+        self.ops.append(lambda: [entries.pop(m) for m, score in list(entries.items()) if low <= score <= high] and None)
+
+    def zadd(self, key, mapping):
+        self.ops.append(lambda: self.client.sorted_sets.setdefault(key, {}).update(mapping))
+
+    def expire(self, key, seconds):
+        self.ops.append(lambda: None)
+
+    def zcard(self, key):
+        self.ops.append(lambda: len(self.client.sorted_sets.get(key, {})))
+
+    def set(self, key, value, ex=None):
+        self.ops.append(lambda: self.client.plain.__setitem__(key, value))
+
+    def delete(self, *keys):
+        self.ops.append(lambda: self.client.delete(*keys))
+
+    def execute(self):
+        return [op() for op in self.ops]
+
+
+def test_the_valkey_path_honours_a_custom_limit(monkeypatch):
+    fake = FakeValkey()
+    monkeypatch.setattr(rl, "get_sync_client", lambda: fake)
+
+    rl.record_failure("custom", max_attempts=3)
+    rl.record_failure("custom", max_attempts=3)
+    assert rl.is_locked_out("custom")[0] is False
+    rl.record_failure("custom", max_attempts=3)
+    assert rl.is_locked_out("custom")[0] is True
+
+    for _ in range(rl.MAX_ATTEMPTS - 1):
+        rl.record_failure("default")
+    assert rl.is_locked_out("default")[0] is False
+    rl.record_failure("default")
+    assert rl.is_locked_out("default")[0] is True
+
+
 def test_locks_out_after_max_attempts(limiter):
     for _ in range(rl.MAX_ATTEMPTS - 1):
         rl.record_failure("key")
