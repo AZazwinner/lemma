@@ -7,7 +7,7 @@ x-backend-build: &backend-build
 x-backend-env: &backend-env
   DATABASE_URL: postgresql://mathboard:${POSTGRES_PASSWORD:-mathboard-dev}@postgres:5432/mathboard
   SECRET_KEY: ${SECRET_KEY:-dev-only-secret-change-me}
-  APP_URL: http://localhost:12000
+  APP_URL: ${APP_URL:-http://localhost:12000}
 
 services:
   postgres:
@@ -41,6 +41,8 @@ services:
     environment:
       <<: *backend-env
       CORS_ORIGINS: ${CORS_ORIGINS:-}
+      WS_ACCEPT_LOGIN_TOKEN: ${WS_ACCEPT_LOGIN_TOKEN:-1}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
     ports:
       - "12001:12001"
     depends_on:
@@ -58,9 +60,9 @@ services:
     build:
       context: ./app
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:12001
-        NEXT_PUBLIC_WS_URL: ws://localhost:12001
-        NEXT_PUBLIC_APP_URL: http://localhost:12000
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:12001}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:12001}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:12000}
     image: mathboard-frontend
     ports:
       - "12000:12000"

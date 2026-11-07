@@ -2,101 +2,156 @@
 
 A collaborative LaTeX editor that renders as you type. Write math like it's a document.
 
-**Live:** https://mathboardx.vercel.app
-
-[![CI](https://github.com/AZazwinner/Mathboard/actions/workflows/ci.yml/badge.svg)](https://github.com/AZazwinner/Mathboard/actions/workflows/ci.yml)
-
-## Features
-
-- Real-time collaborative editing
+- Real-time collaborative editing, with live cursors
 - LaTeX rendered live, inline and block
-- Document sharing with read/write permissions
-- Version history
+- Slash commands, formatting toolbar, templates, export to PDF, Markdown, HTML or text
+- Sharing with read/write permissions, version history, trash
 
-## Stack
+**Stack:** Next.js (`app/`), FastAPI (`src/`), Yjs via pycrdt for conflict-free editing, PostgreSQL with Alembic migrations.
 
-- Frontend: Next.js ([app/](app))
-- Backend: FastAPI, Yjs (via pycrdt) for conflict-free editing ([src/](src))
-- Database: PostgreSQL (SQLite still works for quick local runs)
+## Run it
 
-## Also a Kubernetes project
+You need Docker. From a fresh clone:
 
-The app above runs in production as a single process. The rest of this repository is what it took to run it
-properly on Kubernetes: several backend replicas that keep every user's edits in sync, then the testing,
-monitoring, autoscaling, delivery pipeline and backups that make that trustworthy. Everything is free to run and
-lives in [deploy/](deploy).
-
-```mermaid
-flowchart LR
-    user([Browser])
-    subgraph cluster["kind cluster (3 nodes)"]
-        gw["Envoy Gateway<br/>Gateway API routes"]
-        fe["Frontend"]
-        be["Backend x2 to x5"]
-        vk[("Valkey")]
-        pg[("Postgres<br/>CloudNativePG")]
-    end
-    user --> gw
-    gw --> fe
-    gw -->|"REST + WebSocket"| be
-    be <--> vk
-    be --> pg
+```
+docker compose up --build
 ```
 
-Monitoring, autoscaling, GitOps and backups are optional layers on top. The full picture, the path an edit
-takes between replicas, and the delivery pipeline are in [docs/architecture.md](docs/architecture.md).
+Open <http://localhost:12000>. The API is on <http://localhost:12001>. Postgres and migrations are handled for you,
+and the dev defaults (database password, `SECRET_KEY`) are for local use only.
 
-| Concern | What was built | Evidence |
+### Working on the frontend with hot reload
+
+Run the backend in Docker and the frontend directly:
+
+```
+docker compose up --build backend
+cd app && cp .env.example .env.local && npm ci && npm run dev
+```
+
+### Working on the backend without Docker
+
+You need Python 3.14 (what the Docker image and CI use) and a database. SQLite is fine for solo work; use Postgres to match everyone else.
+
+```
+cd src
+python -m venv venv && source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env                                    # set SECRET_KEY, and DATABASE_URL=sqlite:///./mathboard.db for SQLite
+alembic upgrade head                                    # the app does not create tables itself
+python main.py
+```
+
+## Tests
+
+```
+cd src && pip install -r requirements-dev.txt && pytest     # SQLite by default, no services needed
+cd app && npm test                                          # unit tests
+cd app && npm run test:e2e                                  # Playwright; starts the frontend itself, the backend must already be running
+```
+
+## Configuration
+
+Everything has a working default for local development. Copy the relevant `.env.example` and uncomment what you change:
+
+| File | For | Variables |
 |---|---|---|
-| **Correct with many replicas** | Users on different replicas see each other's edits: per-document Valkey streams, and saves that merge into Postgres instead of overwriting. | [ADR 1](docs/adr/0001-multi-replica-document-sync.md); a chaos suite of 5 failure scenarios passes (below) |
-| **Load tested, and fixed** | k6 simulates up to 800 users. The first runs failed; the findings (connection exhaustion, slow saves, probes killing busy pods) are fixed and documented. | [deploy/tests](deploy/tests/README.md) |
-| **Observable** | Prometheus metrics on a private port, a Grafana dashboard, five alert rules. | [ADR 3](docs/adr/0003-metrics-and-connection-based-autoscaling.md) |
-| **Autoscaled** | KEDA scales the backend on open WebSocket connections. | [ADR 3](docs/adr/0003-metrics-and-connection-based-autoscaling.md) |
-| **Delivered from git** | CI on every pull request, images scanned before they are published and then signed, Argo CD deploying what is merged. | [ADR 4](docs/adr/0004-ci-supply-chain-and-gitops.md) |
-| **Recoverable** | Continuous backup with point-in-time recovery, proven by a restore drill. | [ADR 5](docs/adr/0005-database-backups-and-restore-drill.md) |
+| [`.env.example`](.env.example) | `docker compose` | `POSTGRES_PASSWORD`, `SECRET_KEY`, `CORS_ORIGINS`, `APP_URL`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`, `NEXT_PUBLIC_APP_URL`, `WS_ACCEPT_LOGIN_TOKEN`, `FORWARDED_ALLOW_IPS` |
+| [`src/.env.example`](src/.env.example) | backend run directly | `SECRET_KEY` (required), `DATABASE_URL` (required), `PORT`, `APP_URL`, `CORS_ORIGINS`, `WS_ACCEPT_LOGIN_TOKEN`, `FORWARDED_ALLOW_IPS`, optional `SMTP_*` for password-reset email |
+| [`app/.env.example`](app/.env.example) | frontend run directly | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`, `NEXT_PUBLIC_APP_URL` |
 
-All decisions, with the alternatives considered and what each costs, are indexed in
-[docs/adr](docs/adr/README.md).
+The three `NEXT_PUBLIC_*` values are baked into the frontend at build time: rebuild (or redeploy) after changing them.
+Never commit a real `.env`.
 
-### Results
+## Running the backend behind a Cloudflare Tunnel
 
-Measured on one laptop that also runs the load generator, so read absolute numbers as indicative
-([why, and the full tables](deploy/tests/README.md)).
+For a shared or demo instance: the backend runs on one machine, a Cloudflare Tunnel (`cloudflared`) exposes it at
+`https://api.example.com`, and the frontend is served from somewhere else, such as `https://my-app.vercel.app` or
+`http://localhost:12000`. This section does not create or change the tunnel. It only needs the backend listening on
+a port.
 
-| | Result |
+**Point the tunnel at the backend's port.** The ingress target is `http://localhost:12001`, or whatever `PORT` is
+set to. WebSockets pass through a tunnel without extra settings. The tunnel terminates HTTPS, so the backend itself
+stays plain HTTP.
+
+**Backend settings** (in `src/.env`, or the root `.env` for Docker):
+
+```
+SECRET_KEY=<openssl rand -hex 32>          # never the default on a public instance
+CORS_ORIGINS=https://my-app.vercel.app     # the FRONTEND's origin, exactly: scheme + host (+ port), no trailing slash
+APP_URL=https://my-app.vercel.app          # the frontend again; used in password-reset links
+WS_ACCEPT_LOGIN_TOKEN=0                    # WebSockets accept only short-lived tickets
+FORWARDED_ALLOW_IPS=*                      # Docker only, see below
+```
+
+**Frontend settings** (Vercel project settings, or `app/.env.local`; redeploy after changing):
+
+```
+NEXT_PUBLIC_API_URL=https://api.example.com
+NEXT_PUBLIC_WS_URL=wss://api.example.com   # wss, not ws: an https page cannot open an insecure socket
+NEXT_PUBLIC_APP_URL=https://my-app.vercel.app
+```
+
+Several people can use a frontend at `http://localhost:12000` against the same tunnelled backend, because that origin
+is always allowed. A frontend on any other local port (say `http://localhost:3000`) has to be added to
+`CORS_ORIGINS`: `CORS_ORIGINS=https://my-app.vercel.app,http://localhost:3000`.
+
+**Real client IPs.** Sign-up is limited to 5 per IP per 15 minutes, and repeated failed sign-ins lock that IP and
+username out for 15 minutes. The backend reads the visitor's IP from the `X-Forwarded-For` header that Cloudflare
+sets, but only from peers it trusts, and by default that is `127.0.0.1`.
+
+- Backend run directly on the same machine as `cloudflared` (`python main.py`): nothing to do.
+- Backend in Docker: its connections arrive from Docker's gateway, not `127.0.0.1`, so every visitor would look like one
+  machine and the sixth sign-up in 15 minutes would be refused for everyone. Set `FORWARDED_ALLOW_IPS=*`, and only
+  do that if nothing but the tunnel can reach port 12001 (otherwise anyone who can reach it can forge their IP).
+
+**Check it from outside.** Run these from another network (a phone hotspot is fine), not from the host itself.
+
+```
+# 1. HTTP. Expect {"status":"ok"}
+curl https://api.example.com/health
+
+# 2. CORS, as the browser would ask. Expect 200 and: access-control-allow-origin: https://my-app.vercel.app
+curl -i -X OPTIONS https://api.example.com/signin \
+  -H "Origin: https://my-app.vercel.app" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: authorization,content-type"
+
+# 3. The WebSocket route is reachable. Expect "403 Forbidden" (no credentials sent).
+#    404, 502 or a Cloudflare error page means the tunnel is not reaching the backend.
+curl -i -m 5 https://api.example.com/ws/docs/1 \
+  -H "Connection: Upgrade" -H "Upgrade: websocket" \
+  -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=="
+```
+
+```
+# 4. A real WebSocket session: signs in, opens a new document called "tunnel check" (delete it afterwards),
+#    and waits for the server to send its contents. Needs Node 22+ and an existing account.
+#    Expect: WebSocket works
+export API=https://api.example.com CHECK_USER=<username> CHECK_PASS=<password>
+node -e '
+const api = process.env.API, h = { "Content-Type": "application/json" };
+const post = async (p, b, t) => (await fetch(api + p, { method: "POST", headers: { ...h, ...(t && { Authorization: "Bearer " + t }) }, body: JSON.stringify(b) })).json();
+(async () => {
+  const { token } = await post("/signin", { username: process.env.CHECK_USER, password: process.env.CHECK_PASS });
+  if (!token) { console.log("sign-in failed: check CHECK_USER / CHECK_PASS"); process.exitCode = 1; return; }
+  const { ticket } = await post("/ws-ticket", {}, token);
+  const { doc_id } = await post("/docs/new", { title: "tunnel check" }, token);
+  const ws = new WebSocket(api.replace(/^http/, "ws") + "/ws/docs/" + doc_id + "?token=" + ticket);
+  const giveUp = setTimeout(() => { console.log("WebSocket timed out"); process.exitCode = 1; ws.close(); }, 8000);
+  ws.onmessage = () => { console.log("WebSocket works"); clearTimeout(giveUp); ws.close(); };
+  ws.onerror = () => { console.log("WebSocket failed"); clearTimeout(giveUp); process.exitCode = 1; };
+})().catch((e) => { console.log("request failed:", (e.cause && e.cause.code) || e.message); process.exitCode = 1; });'
+```
+
+If something is off:
+
+| Symptom | Likely cause |
 |---|---|
-| **Chaos** (12 simulated users editing one document) | Passes in all 5 scenarios: no failure, a pod deleted gracefully, a pod force-killed, Valkey down for 10 s, and a rolling restart of every backend pod (2,400 edits over 65 s). Every client ends with every edit, all clients identical, Postgres has every block. |
-| **Load** | 200 to 800 users at 1, 3 and 5 replicas: every connection succeeded, no socket dropped, no pod restarted. Up to 400 users, fan-out p95 is 14 ms or less. At 800 users, p95 is 458 ms on one replica and 208 ms on five. |
-| **Autoscaling** | 220 users took the backend from 2 to 4 replicas in 28 s with no dropped connection and 12 ms p95, then back to 2 about five minutes after they left. |
-| **Restore** | A second database restored to a chosen moment in 51 to 52 s; exactly the right rows came back and every real table matched. |
-| **Supply chain** | Image scanning found 2 critical and 4 high vulnerabilities in the frontend's Next.js version; upgraded. CI also found an intermittent test failure from shared state across event loops; fixed. |
+| CORS error in the browser console | `CORS_ORIGINS` is missing the frontend's exact origin |
+| Editor loads but never connects, or a mixed-content error | `NEXT_PUBLIC_WS_URL` is `ws://` on an https page, or the `NEXT_PUBLIC_*` values were wrong when the frontend was built (production builds also lock the browser to those hosts with a Content-Security-Policy) |
+| "Too many signup attempts" after a few sign-ups | the backend sees one IP for everybody; see Real client IPs above |
+| Cloudflare 502 / 1033, or check 3 returns 404 | `cloudflared` is not running, or its ingress points at the wrong port |
 
-## Try it locally
-
-You need Docker (about 4 GiB free for the base cluster, and roughly 0.5 GiB more for each optional layer),
-plus `kind`, `kubectl` and `helm`, and a bash shell (Git Bash on Windows).
-
-```
-bash deploy/kind/up.sh                   # cluster, Postgres, gateway, the app: http://app.localhost:8080
-bash deploy/tests/run-chaos.sh           # kill things while people are editing
-bash deploy/tests/run-load.sh            # simulated users at 1, 3 and 5 replicas
-
-bash deploy/kind/observability.sh up     # Prometheus, Grafana, KEDA autoscaling
-bash deploy/kind/backups.sh up           # then: bash deploy/tests/run-restore-drill.sh
-bash deploy/kind/argocd.sh up            # deploy from git
-bash deploy/kind/status.sh               # what is on
-```
-
-Details and design notes are in [deploy/README.md](deploy/README.md). For the plain application (no
-Kubernetes), see [SETUP.md](SETUP.md).
-
-## Documentation
-
-- [docs/architecture.md](docs/architecture.md): diagrams
-- [docs/adr](docs/adr/README.md): decision records
-- [deploy/README.md](deploy/README.md): running and operating the cluster
-- [deploy/tests/README.md](deploy/tests/README.md): chaos, load, autoscaling and restore tests, and what they found
-
-## License
-
-[MIT](LICENSE)
+Login tokens are sent in an `Authorization` header and the WebSocket uses a one-minute ticket, so no cookies are
+shared between the frontend and the backend and there are no `SameSite` or `Secure` settings to configure.
