@@ -634,6 +634,29 @@
   transform: none;
 }
 
+/* A step "Check my work" flagged gets a red "!" in the margin while the flag is up. */
+.editor-doc [data-mark]:has(.cm-sidekick-flag)::before {
+  content: "!";
+  opacity: 1;
+  transform: none;
+  color: var(--pencil);
+}
+
+/* Sidekick menu: items arrive one after another, like the other menus. */
+.sk-item {
+  animation: mb-item 0.22s var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 28ms);
+}
+
+.sk-item svg {
+  transition: transform 0.25s var(--ease);
+}
+
+.sk-item:hover svg,
+.sk-item:focus-visible svg {
+  transform: scale(1.1);
+}
+
 /* An equation that won't compile is marked in red pencil. */
 .editor-doc .katex-error {
   color: var(--pencil) !important;
