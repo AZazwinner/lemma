@@ -51,7 +51,7 @@ export function MathSymbolMenu({
                             i === activeIndex ? "bg-tint text-ink" : ""
                         }`}
                     >
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted font-serif text-[15px] leading-none">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted font-serif text-[0.9375rem] leading-none">
                             {item.glyph}
                         </span>
                         <span className="flex min-w-0 flex-col">

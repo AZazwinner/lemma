@@ -166,7 +166,7 @@ function WordRotator({ words, interval = 3000 }: { words: string[]; interval?: n
         {words[index]}
         {striking && (
           <motion.span
-            className="absolute left-0 top-[0.72em] h-[2px] bg-red-400/70"
+            className="absolute left-0 top-[0.72em] h-[0.125rem] bg-red-400/70"
             initial={{ width: 0 }}
             animate={{ width: "100%" }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
@@ -236,7 +236,7 @@ function RenderToggleIcon() {
   }, [reduceMotion])
 
   return (
-    <div className="relative inline-flex h-8 w-8 items-center justify-center rounded-[6px] border border-hairline bg-sheet">
+    <div className="relative inline-flex h-8 w-8 items-center justify-center rounded-[0.375rem] border border-hairline bg-sheet">
       <AnimatePresence mode="wait">
         {rendered ? (
           <motion.span
@@ -245,7 +245,7 @@ function RenderToggleIcon() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.85 }}
             transition={{ duration: 0.25 }}
-            className="font-serif text-[15px] italic text-ink"
+            className="font-serif text-[0.9375rem] italic text-ink"
           >
             ∑x²
           </motion.span>
@@ -256,7 +256,7 @@ function RenderToggleIcon() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.85 }}
             transition={{ duration: 0.25 }}
-            className="font-mono text-[9px] text-ink-faint"
+            className="font-mono text-[0.5625rem] text-ink-faint"
           >
             \sum x^2
           </motion.span>
@@ -269,7 +269,7 @@ function RenderToggleIcon() {
 function CollabCursorsIcon() {
   const reduceMotion = useReducedMotion()
   return (
-    <div className="relative h-8 w-8 overflow-hidden rounded-[6px] border border-hairline bg-sheet">
+    <div className="relative h-8 w-8 overflow-hidden rounded-[0.375rem] border border-hairline bg-sheet">
       {!reduceMotion ? (
         <>
           <motion.span
@@ -312,7 +312,7 @@ function ShareLinkIcon() {
   }, [reduceMotion])
 
   return (
-    <div className="relative inline-flex h-8 w-8 items-center justify-center rounded-[6px] border border-hairline bg-sheet">
+    <div className="relative inline-flex h-8 w-8 items-center justify-center rounded-[0.375rem] border border-hairline bg-sheet">
       <AnimatePresence mode="wait">
         {copied ? (
           <motion.span
@@ -354,18 +354,18 @@ function AuthorLane({
   return (
     <div className="p-5">
       <div
-        className="mb-3 inline-flex items-center gap-1.5 rounded-[4px] px-2 py-0.5 text-[10px] font-medium text-white"
+        className="mb-3 inline-flex items-center gap-1.5 rounded-[0.25rem] px-2 py-0.5 text-[0.625rem] font-medium text-white"
         style={{ backgroundColor: author.color }}
       >
         <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
         {author.name}
       </div>
 
-      <pre className="scrollbar-custom overflow-x-auto font-mono text-[12.5px] leading-relaxed whitespace-pre-wrap break-words text-ink-faint">
+      <pre className="scrollbar-custom overflow-x-auto font-mono text-[0.7812rem] leading-relaxed whitespace-pre-wrap break-words text-ink-faint">
         {typed}
         {!done && (
           <motion.span
-            className="ml-[1px] inline-block h-[1em] w-[2px] translate-y-[2px]"
+            className="ml-[0.0625rem] inline-block h-[1em] w-[0.125rem] translate-y-[0.125rem]"
             style={{ backgroundColor: author.color }}
             animate={{ opacity: [1, 1, 0, 0] }}
             transition={{ duration: 1, repeat: Infinity, times: [0, 0.5, 0.5, 1] }}
@@ -456,7 +456,7 @@ const CollabDemoCard = forwardRef<DemoHandle>(function CollabDemoCard(_props, re
         hasAutoPlayed.current = true
         setPlayToken((t) => t + 1)
       }}
-      className="group relative overflow-hidden rounded-[6px] border border-hairline shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+      className="group relative overflow-hidden rounded-[0.375rem] border border-hairline shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
     >
       <div className="flex items-center gap-1.5 border-b border-hairline bg-[#FAFAF9] px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-ink-faint/40" />
@@ -467,7 +467,7 @@ const CollabDemoCard = forwardRef<DemoHandle>(function CollabDemoCard(_props, re
           type="button"
           onClick={replay}
           aria-label="Replay animation"
-          className="ml-auto rounded-[4px] p-1 text-ink-faint opacity-0 transition-opacity duration-200 hover:bg-tint hover:text-ink-soft group-hover:opacity-100"
+          className="ml-auto rounded-[0.25rem] p-1 text-ink-faint opacity-0 transition-opacity duration-200 hover:bg-tint hover:text-ink-soft group-hover:opacity-100"
         >
           <RotateCcw className="h-3.5 w-3.5" />
         </button>
@@ -478,7 +478,7 @@ const CollabDemoCard = forwardRef<DemoHandle>(function CollabDemoCard(_props, re
         <AuthorLane author={AUTHOR_B} full={DEMO_LINE_B} typed={b.typed} done={b.done} />
       </div>
 
-      <div className="min-h-[168px] border-t border-hairline">
+      <div className="min-h-[10.5rem] border-t border-hairline">
         <AnimatePresence mode="wait">
           {showRender && (
             <motion.div
@@ -515,7 +515,7 @@ export default function HomePage() {
 
         <header className="border-b border-hairline">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-2 text-[15px] font-medium">
+            <div className="flex items-center gap-2 text-[0.9375rem] font-medium">
               <Logo className="h-4 w-4" />
               mathboard
             </div>
@@ -525,7 +525,7 @@ export default function HomePage() {
                 <a
                   key={link.key}
                   href={link.href}
-                  className="relative z-0 rounded-[6px] px-3 py-1.5 hover:text-ink"
+                  className="relative z-0 rounded-[0.375rem] px-3 py-1.5 hover:text-ink"
                   onMouseEnter={() => setHoveredLink(link.key)}
                   onMouseLeave={() => setHoveredLink(null)}
                   onFocus={() => setHoveredLink(link.key)}
@@ -534,7 +534,7 @@ export default function HomePage() {
                   {hoveredLink === link.key && (
                     <motion.span
                       layoutId="nav-pill"
-                      className="absolute inset-0 -z-10 rounded-[6px]"
+                      className="absolute inset-0 -z-10 rounded-[0.375rem]"
                       style={{ backgroundColor: ACCENT }}
                       transition={{ type: "spring", stiffness: 350, damping: 30 }}
                     />
@@ -550,7 +550,7 @@ export default function HomePage() {
               </Link>
               <AnimatedButton>
                 <Link href="/signin">
-                  <Button size="sm" className="rounded-[6px] bg-primary text-primary-foreground hover:bg-primary/90">
+                  <Button size="sm" className="rounded-[0.375rem] bg-primary text-primary-foreground hover:bg-primary/90">
                     Get started
                   </Button>
                 </Link>
@@ -560,7 +560,7 @@ export default function HomePage() {
                 onClick={() => setMobileNavOpen((open) => !open)}
                 aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
                 aria-expanded={mobileNavOpen}
-                className="rounded-[6px] p-1.5 text-ink-faint hover:bg-[#FAFAF9] hover:text-ink sm:hidden"
+                className="rounded-[0.375rem] p-1.5 text-ink-faint hover:bg-[#FAFAF9] hover:text-ink sm:hidden"
               >
                 {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
@@ -582,7 +582,7 @@ export default function HomePage() {
                       key={link.key}
                       href={link.href}
                       onClick={() => setMobileNavOpen(false)}
-                      className="rounded-[6px] px-2 py-2.5 text-sm text-ink-soft hover:bg-[#FAFAF9] hover:text-ink"
+                      className="rounded-[0.375rem] px-2 py-2.5 text-sm text-ink-soft hover:bg-[#FAFAF9] hover:text-ink"
                     >
                       {link.label}
                     </a>
@@ -602,7 +602,7 @@ export default function HomePage() {
         >
           <motion.p
             variants={fadeUp}
-            className="inline-flex items-center rounded-[6px] px-3 py-1 text-sm text-ink-soft"
+            className="inline-flex items-center rounded-[0.375rem] px-3 py-1 text-sm text-ink-soft"
             style={{ backgroundColor: ACCENT }}
           >
             <PresenceDot />
@@ -627,7 +627,7 @@ export default function HomePage() {
           <motion.div variants={fadeUp} className="mt-8 flex items-center justify-center gap-2">
             <AnimatedButton>
               <Link href="/signin">
-                <Button size="lg" className="rounded-[6px] bg-primary px-5 text-primary-foreground hover:bg-primary/90">
+                <Button size="lg" className="rounded-[0.375rem] bg-primary px-5 text-primary-foreground hover:bg-primary/90">
                   Get started
                 </Button>
               </Link>
@@ -637,7 +637,7 @@ export default function HomePage() {
                 size="lg"
                 variant="ghost"
                 onClick={handleViewDemo}
-                className="rounded-[6px] text-ink-soft hover:text-ink"
+                className="rounded-[0.375rem] text-ink-soft hover:text-ink"
               >
                 View demo
               </Button>
@@ -668,7 +668,7 @@ export default function HomePage() {
             >
               {FEATURES.map((feature) => (
                 <motion.div key={feature.title} variants={fadeUp} className="h-full">
-                  <div className="h-full rounded-[6px] border border-hairline p-6 transition-colors duration-300 hover:border-ink-faint/50 hover:bg-[#FAFAF9]">
+                  <div className="h-full rounded-[0.375rem] border border-hairline p-6 transition-colors duration-300 hover:border-ink-faint/50 hover:bg-[#FAFAF9]">
                     <feature.Visual />
                     <h3 className="mt-4 font-medium text-ink">{feature.title}</h3>
                     <p className="mt-2 text-sm leading-relaxed text-ink-faint">
@@ -696,7 +696,7 @@ export default function HomePage() {
                 },
               }}
               style={{ transformOrigin: "center", backgroundColor: ACCENT }}
-              className="absolute inset-x-6 inset-y-6 -z-10 rounded-[6px] sm:inset-x-12"
+              className="absolute inset-x-6 inset-y-6 -z-10 rounded-[0.375rem] sm:inset-x-12"
             />
 
             <motion.h2 variants={fadeUp} className="font-heading text-3xl font-normal text-ink">
@@ -709,7 +709,7 @@ export default function HomePage() {
             <motion.div variants={fadeUp} className="mt-8 inline-block">
               <AnimatedButton>
                 <Link href="/docs">
-                  <Button size="lg" className="rounded-[6px] bg-primary px-6 text-primary-foreground hover:bg-primary/90">
+                  <Button size="lg" className="rounded-[0.375rem] bg-primary px-6 text-primary-foreground hover:bg-primary/90">
                     Launch Mathboard
                   </Button>
                 </Link>

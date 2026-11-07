@@ -33,7 +33,7 @@ export function Segmented<T extends string>({
       role={tabs ? "tablist" : "group"}
       aria-label={label}
       className={cn(
-        "relative inline-flex gap-0.5 rounded-[9px] border border-hairline-soft bg-muted p-[3px]",
+        "relative inline-flex gap-0.5 rounded-[0.5625rem] border border-hairline-soft bg-muted p-[0.1875rem]",
         className
       )}
     >
@@ -48,7 +48,7 @@ export function Segmented<T extends string>({
             aria-pressed={tabs ? undefined : active}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "relative rounded-md px-4 py-1.5 text-[13px] font-medium transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+              "relative rounded-md px-4 py-1.5 text-[0.8125rem] font-medium transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
               active ? "text-foreground" : "text-ink-faint hover:text-foreground"
             )}
           >
@@ -59,8 +59,8 @@ export function Segmented<T extends string>({
                 transition={{ type: "spring", stiffness: 420, damping: 36 }}
                 className="absolute inset-0 rounded-md bg-sheet shadow-[0_1px_2px_rgba(20,30,50,0.1)]"
               >
-                <span className="absolute top-1/2 left-1 -translate-y-[54%] font-serif text-[17px] leading-none text-ink-soft">[</span>
-                <span className="absolute top-1/2 right-1 -translate-y-[54%] font-serif text-[17px] leading-none text-ink-soft">]</span>
+                <span className="absolute top-1/2 left-1 -translate-y-[54%] font-serif text-[1.0625rem] leading-none text-ink-soft">[</span>
+                <span className="absolute top-1/2 right-1 -translate-y-[54%] font-serif text-[1.0625rem] leading-none text-ink-soft">]</span>
               </motion.span>
             )}
             <span className="relative">{opt.label}</span>
