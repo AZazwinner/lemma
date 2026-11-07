@@ -213,3 +213,6 @@ __marimo__/
 
 # Browser automation output
 .playwright-mcp/
+
+# Claude Code: per-machine permissions (the shared skills and commands in .claude/ are tracked)
+.claude/settings.local.json
