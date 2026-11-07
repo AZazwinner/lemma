@@ -4,6 +4,7 @@ Moved out of the old multi-replica suite so the fallback path (rooms reconciling
 stays covered after that suite was removed.
 """
 import asyncio
+import sys
 
 import pycrdt
 import pytest
@@ -15,6 +16,23 @@ from tests.test_docs_permissions import create_doc, signup
 from tests.test_liveshare_ws import new_block_update
 
 DEAD_VALKEY = "redis://127.0.0.1:1/0"
+
+
+class DeadBus:
+    """Stands in for coordination.Bus talking to a Valkey server that cannot be reached: every call fails, as the real client's would."""
+
+    def __init__(self, url):
+        pass
+
+    async def _fail(self, *args, **kwargs):
+        raise ConnectionError("valkey unreachable")
+
+    publish_update = read_updates = trim_stream = delete_stream = _fail
+    set_presence = clear_presence = publish_awareness = _fail
+    subscribe_awareness = unsubscribe_awareness = _fail
+
+    async def close(self):
+        pass
 
 
 class FakeSocket:
@@ -89,11 +107,15 @@ def test_replicas_converge_through_the_database_when_valkey_is_absent(doc_id, mo
 
 def test_editing_still_works_when_valkey_is_down(doc_id, monkeypatch):
     monkeypatch.setattr(ydoc_room, "RECONCILE_SECONDS", 0.2)
+    # The valkey package is optional, so stand in for an unreachable server instead of needing the client library.
+    monkeypatch.setattr(ydoc_room, "Bus", DeadBus)
+    monkeypatch.setattr(ydoc_room, "valkey_available", lambda: True)
 
     async def scenario():
         a, b = RoomRegistry(DEAD_VALKEY), RoomRegistry(DEAD_VALKEY)
         try:
             room_a, room_b = await a.get_or_create(doc_id), await b.get_or_create(doc_id)
+            assert isinstance(room_a.bus, DeadBus), "the rooms must really be talking to the failing bus"
             sock_a, sock_b = FakeSocket(), FakeSocket()
             await room_a.add_socket(sock_a)
             await room_b.add_socket(sock_b)
@@ -105,5 +127,26 @@ def test_editing_still_works_when_valkey_is_down(doc_id, monkeypatch):
             assert await wait_until(lambda: "no-valkey" in blocks_seen_by(sock_b))
         finally:
             await shutdown_all(a, b)
+
+    asyncio.run(scenario())
+
+
+def test_rooms_run_without_a_bus_when_the_valkey_package_is_not_installed(doc_id, monkeypatch):
+    import db.coordination as coordination
+
+    monkeypatch.setitem(sys.modules, "valkey", None)
+    monkeypatch.setattr(coordination, "_warned_missing_package", False)
+
+    async def scenario():
+        registry = RoomRegistry(DEAD_VALKEY)
+        try:
+            room = await registry.get_or_create(doc_id)
+            assert room.bus is None
+            sock = FakeSocket()
+            await room.add_socket(sock)
+            await room.handle_sync(new_block_update("no-package", "still works"), sock)
+            assert "no-package" in block_ids(room.ydoc)
+        finally:
+            await shutdown_all(registry)
 
     asyncio.run(scenario())

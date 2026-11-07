@@ -1,9 +1,15 @@
 import asyncio
+import importlib.util
 import os
 import time
+from typing import TYPE_CHECKING
 
-import valkey
-import valkey.asyncio as avalkey
+if TYPE_CHECKING:
+    import valkey
+
+# Valkey is optional and its package is not in requirements.txt: it is only needed to share live edits and
+# login rate limits between several backend processes. Install it with `pip install valkey` and set VALKEY_URL.
+# Everything below imports it lazily, so this module loads without it.
 
 STREAM_TTL_SECONDS = 3600
 STREAM_MAXLEN = 50_000
@@ -53,6 +59,8 @@ class Bus:
     """Async Valkey access for live rooms: an update stream per document (durable, replayable), a pub/sub channel per document for ephemeral awareness (cursors), and presence keys."""
 
     def __init__(self, url: str):
+        import valkey.asyncio as avalkey
+
         self._client = avalkey.Valkey.from_url(
             url,
             socket_connect_timeout=3,
@@ -150,16 +158,29 @@ class Bus:
         await self._client.aclose()
 
 
-_sync_client: valkey.Valkey | None = None
+_sync_client: "valkey.Valkey | None" = None
+_warned_missing_package = False
 
 
-def get_sync_client() -> valkey.Valkey | None:
-    """Blocking client for the sync request handlers (rate limiting, restore checks); None when Valkey isn't configured."""
+def valkey_available() -> bool:
+    """Whether the valkey package can be imported. Call it only once a URL is configured: if the package is missing, warn once and let the caller carry on without Valkey instead of failing logins or live editing."""
+    global _warned_missing_package
+    if importlib.util.find_spec("valkey") is not None:
+        return True
+    if not _warned_missing_package:
+        _warned_missing_package = True
+        print("coordination: VALKEY_URL is set but the valkey package is not installed (pip install valkey); running without Valkey")
+    return False
+
+
+def get_sync_client() -> "valkey.Valkey | None":
+    """Blocking client for the sync request handlers (rate limiting, restore checks); None when Valkey isn't configured or its package isn't installed."""
     global _sync_client
     url = os.getenv("VALKEY_URL")
-    if not url:
+    if not url or not valkey_available():
         return None
     if _sync_client is None:
+        import valkey
         _sync_client = valkey.Valkey.from_url(url, socket_connect_timeout=1, socket_timeout=1)
     return _sync_client
 

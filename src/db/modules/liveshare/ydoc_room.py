@@ -13,6 +13,7 @@ from db.coordination import (
     PRESENCE_TTL_SECONDS,
     Bus,
     decode_awareness_payload,
+    valkey_available,
 )
 from db.database import run_in_db
 from db.modules.liveshare.backfill import (
@@ -389,7 +390,7 @@ class RoomRegistry:
 
     def _current_bus(self) -> Bus | None:
         url = os.getenv("VALKEY_URL") if self._bus_url is _FROM_ENV else self._bus_url
-        if not url:
+        if not url or not valkey_available():
             return None
         loop = asyncio.get_running_loop()
         if self._bus is None or self._bus_loop is not loop:

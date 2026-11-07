@@ -1,8 +1,8 @@
 import os
+import sys
 import time
 
 import pytest
-import valkey
 
 from db.core.auth import rate_limit as rl
 
@@ -76,10 +76,32 @@ def test_lockout_is_shared_across_processes():
     assert rl.is_locked_out("shared")[0] is True
 
 
-def test_falls_back_to_memory_when_valkey_is_unreachable(monkeypatch):
-    dead = valkey.Valkey(host="127.0.0.1", port=1, socket_connect_timeout=0.2, socket_timeout=0.2)
-    monkeypatch.setattr(rl, "get_sync_client", lambda: dead)
+class DeadClient:
+    """Stands in for a Valkey server that cannot be reached: every call fails, as the real client's would."""
 
+    def __getattr__(self, name):
+        raise ConnectionError("valkey unreachable")
+
+
+def test_falls_back_to_memory_when_valkey_is_unreachable(monkeypatch):
+    monkeypatch.setattr(rl, "get_sync_client", lambda: DeadClient())
+
+    for _ in range(rl.MAX_ATTEMPTS):
+        rl.record_failure("key")
+
+    assert rl.is_locked_out("key")[0] is True
+    assert rl.is_locked_out("other")[0] is False
+
+
+def test_falls_back_to_memory_when_the_valkey_package_is_not_installed(monkeypatch):
+    import db.coordination as coordination
+
+    monkeypatch.setenv("VALKEY_URL", "redis://127.0.0.1:1/0")
+    monkeypatch.setitem(sys.modules, "valkey", None)
+    monkeypatch.setattr(coordination, "_sync_client", None)
+    monkeypatch.setattr(coordination, "_warned_missing_package", False)
+
+    assert coordination.get_sync_client() is None
     for _ in range(rl.MAX_ATTEMPTS):
         rl.record_failure("key")
 

@@ -13,4 +13,3 @@ uvicorn[standard]==0.52.1
 argon2-cffi==25.1.0
 pycrdt==0.14.2
 alembic==1.20.0
-valkey==6.1.1
