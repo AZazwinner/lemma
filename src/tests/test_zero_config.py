@@ -15,7 +15,7 @@ def test_default_database_is_an_absolute_sqlite_file_in_src():
     assert url.startswith("sqlite:///")
     path = Path(url[len("sqlite:///"):])
     assert path.is_absolute()
-    assert path == (SRC_DIR / "mathboard.db")
+    assert path == (SRC_DIR / "lemma.db")
 
 
 def test_default_database_does_not_depend_on_the_working_directory(tmp_path, monkeypatch):

@@ -222,7 +222,31 @@ def test_explain_writes_the_explanation_as_a_block(client, owner):
         assert resp.status_code == 200
         watcher.settle()
         text = watcher.texts()[1]
-        assert text.startswith("This is a sample explanation") and "\n1. " in text and "\n3. " in text
+        # one paragraph (the sentences joined), about this equation, with the maths between single dollar signs
+        assert "\n" not in text and "$x^2$" in text and text.count(". ") >= 2
+
+
+def test_write_puts_one_block_per_paragraph_and_equation_after_the_writers_block(client, owner):
+    _, owner_token = owner
+    doc_id = create_doc(client, owner_token)
+
+    with connect(client, doc_id, owner_token) as ws:
+        watcher = Watcher(ws)
+        watcher.settle()
+        first = watcher.ids()[0]
+        resp = client.post(
+            f"/sidekick/docs/{doc_id}/write",
+            json={"text": "a proof that there are infinitely many primes", "after_block_id": first},
+            headers=auth(owner_token),
+        )
+        assert resp.status_code == 200
+        watcher.settle()
+        texts = watcher.texts()
+        assert watcher.ids()[0] == first and watcher.ids()[1] == resp.json()["block_id"]
+        assert len(texts) >= 6 and texts[1].startswith("**Theorem.**")
+        # displayed equations are blocks of their own, with $$ on lines of their own, and nothing is left as raw brackets
+        assert any(text.startswith("$$\nN = ") and text.endswith("\n$$") for text in texts)
+        assert not any("\\[" in text or "\\(" in text for text in texts)
 
 
 def test_a_block_id_that_is_not_there_goes_at_the_end(client, owner):

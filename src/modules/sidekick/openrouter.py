@@ -59,7 +59,7 @@ async def generate(
     headers = {
         "Authorization": f"Bearer {config.openrouter_key()}",
         # Optional attribution headers OpenRouter documents; harmless, and they make the app recognisable in its dashboard.
-        "X-Title": "Mathboard Sidekick",
+        "X-Title": "Lemma Sidekick",
     }
     try:
         async with httpx.AsyncClient(timeout=config.timeout_seconds()) as client:

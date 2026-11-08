@@ -517,7 +517,7 @@ export default function HomePage() {
           <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
             <div className="flex items-center gap-2 text-[0.9375rem] font-medium">
               <Logo className="h-4 w-4" />
-              mathboard
+              lemma
             </div>
 
             <nav className="hidden items-center gap-1 text-sm text-ink-faint sm:flex">
@@ -655,7 +655,7 @@ export default function HomePage() {
           <div className="mx-auto max-w-5xl px-6 py-24">
             <Reveal>
               <h2 className="font-heading text-3xl font-normal text-ink">
-                Focus on the math. Mathboard handles the rendering.
+                Focus on the math. Lemma handles the rendering.
               </h2>
             </Reveal>
 
@@ -710,7 +710,7 @@ export default function HomePage() {
               <AnimatedButton>
                 <Link href="/docs">
                   <Button size="lg" className="rounded-[0.375rem] bg-primary px-6 text-primary-foreground hover:bg-primary/90">
-                    Launch Mathboard
+                    Launch Lemma
                   </Button>
                 </Link>
               </AnimatedButton>
@@ -721,7 +721,7 @@ export default function HomePage() {
 
         <footer className="border-t border-hairline">
           <div className="mx-auto flex max-w-5xl flex-col items-center gap-2 px-6 py-8 text-sm text-ink-faint sm:flex-row sm:justify-between">
-            <span>© {new Date().getFullYear()} mathboard</span>
+            <span>© {new Date().getFullYear()} lemma</span>
             <a
               href="https://github.com/AZazwinner/Mathboard"
               target="_blank"

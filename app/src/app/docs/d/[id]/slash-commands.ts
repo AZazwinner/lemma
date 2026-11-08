@@ -5,6 +5,8 @@ import { SIDEKICK_SLASH_COMMANDS } from "@/components/sidekick/slash"
 export type SlashCommand = {
     id: string
     label: string
+    /** Other names the command can be found by (`/ai` finds Sidekick). */
+    aliases?: string[]
     description: string
     icon: ComponentType<{ className?: string }>
     template: string

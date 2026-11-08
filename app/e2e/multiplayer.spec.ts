@@ -1,13 +1,19 @@
 import { expect, test, type Browser, type Page } from "@playwright/test"
 import { focusBlock, signUp } from "./helpers"
 import {
+    allBlockSources,
     blockSource,
     currentUserId,
+    explanationCard,
     ghost,
     openNewDoc,
     openSidekickMenu,
+    problemRow,
+    runFromMenu,
     shareDoc,
+    sidekickPanel,
     skipUnlessMock,
+    squiggle,
 } from "./sidekick-helpers"
 
 // Two browsers (separate contexts, so separate logins) on the same document.
@@ -51,8 +57,7 @@ test("a sidekick suggestion stays private until it is accepted, then syncs like 
         await a.keyboard.type("integral of x squared")
         await expect.poll(() => blockSource(b)).toBe("integral of x squared")
 
-        await openSidekickMenu(a)
-        await a.getByRole("button", { name: /Describe → LaTeX/ }).click()
+        await runFromMenu(a, "Rewrite")
         await expect(ghost(a)).toBeVisible()
 
         // B never sees the suggestion, and nothing was written to the shared text
@@ -74,7 +79,8 @@ test("a sidekick suggestion stays private until it is accepted, then syncs like 
     }
 })
 
-const sidekickInPresence = (page: Page) => page.locator('[title="Sidekick"]')
+// the Sidekick's avatar in the presence stack (the sparkle button in the top bar has the same name, but is not inside it)
+const sidekickInPresence = (page: Page) => page.locator('[aria-label$="people here"] [aria-label="Sidekick"]')
 const INTEGRAL_BLOCK = "$$\n\\int_0^1 x^2 \\, dx\n$$"
 
 test("the Sidekick joins as a collaborator: it shows in presence, its block reaches both users, then it leaves", async ({ browser }) => {
@@ -90,7 +96,9 @@ test("the Sidekick joins as a collaborator: it shows in presence, its block reac
         await expect(toggle).toHaveAttribute("aria-checked", "false") // off unless asked for
         await toggle.click()
         await expect(toggle).toHaveAttribute("aria-checked", "true")
-        await a.getByRole("button", { name: /Describe → LaTeX/ }).click()
+        const field = a.getByTestId("sidekick-write-input")
+        await field.fill("integral of x squared")
+        await field.press("Enter")
 
         // It is in the presence list for both people, as itself...
         await expect(sidekickInPresence(a)).toBeVisible()
@@ -134,19 +142,50 @@ test("someone with view-only access can't make the Sidekick write", async ({ bro
         await b.waitForTimeout(1000)
         await skipUnlessMock(b)
 
+        await focusBlock(b) // a block to act on, so only the document being view-only can disable things
         await openSidekickMenu(b)
+        const panel = sidekickPanel(b)
         await expect(b.getByTestId("sidekick-collab-switch")).toHaveCount(0)
-        await expect(b.getByRole("button", { name: /Describe → LaTeX/ })).toBeDisabled()
-        await expect(b.getByRole("button", { name: /Fix LaTeX error/ })).toBeDisabled()
-        await expect(b.getByRole("button", { name: /Suggest next step/ })).toBeDisabled()
-        await expect(b.getByRole("button", { name: /Photo → LaTeX/ })).toBeDisabled()
+        await expect(panel.getByRole("button", { name: /^Explain/ })).toBeEnabled() // reading is fine
+        for (const name of [/^Fix/, /^Next step/, /^Rewrite/, /Photo → LaTeX/]) {
+            await expect(panel.getByRole("button", { name })).toBeDisabled()
+        }
+        await expect(b.getByTestId("sidekick-write-input")).toBeDisabled()
     } finally {
         await a.context().close()
         await b.context().close()
     }
 })
 
-test("a flagged step is private to the person who asked, and Use suggestion syncs like a normal edit", async ({ browser }) => {
+test("an explanation is private to the person who asked, until they choose Insert as note", async ({ browser }) => {
+    const { a, b } = await twoWriters(browser, "mp_explain")
+    try {
+        await skipUnlessMock(a)
+        await focusBlock(a)
+        await a.keyboard.type("x^2 + y^2 = z^2")
+        await expect.poll(() => blockSource(b)).toBe("x^2 + y^2 = z^2")
+
+        await runFromMenu(a, "Explain")
+        await expect(explanationCard(a)).toBeVisible()
+
+        // B sees no card and no new block: it is only on A's screen
+        await b.waitForTimeout(800)
+        await expect(explanationCard(b)).toHaveCount(0)
+        expect(await allBlockSources(b)).toEqual(["x^2 + y^2 = z^2"])
+
+        // Insert as note is the explicit choice to share it: it becomes an ordinary block that syncs to B
+        await explanationCard(a).getByRole("button", { name: "Insert as note" }).click()
+        await expect.poll(async () => (await allBlockSources(b)).length).toBe(2)
+        expect((await allBlockSources(b))[1]).toContain("This is the Pythagorean relation")
+        await expect(explanationCard(a)).toHaveCount(0)
+        await expect(explanationCard(b)).toHaveCount(0)
+    } finally {
+        await a.context().close()
+        await b.context().close()
+    }
+})
+
+test("a flagged step is private to the person who asked, and its fix syncs like a normal edit once accepted", async ({ browser }) => {
     const { a, b } = await twoWriters(browser, "mp_check")
     try {
         await skipUnlessMock(a)
@@ -156,17 +195,24 @@ test("a flagged step is private to the person who asked, and Use suggestion sync
         await a.keyboard.type("2x = 5")
         await expect.poll(() => blockSource(b)).toBe("2x + 3 = 7\n2x = 5")
 
-        await openSidekickMenu(a)
-        await a.getByRole("button", { name: /Check my work/ }).click()
-        await expect(a.locator(".cm-sidekick-flag")).toHaveText("2x = 5")
+        await runFromMenu(a, "Fix")
+        await expect(squiggle(a)).toHaveText("2x = 5")
+        await expect(problemRow(a)).toBeVisible()
 
-        // nothing about it reaches B: no highlight, no text change
+        // nothing about it reaches B: no squiggle, no line under the block, no text change
         await b.waitForTimeout(600)
-        await expect(b.locator(".cm-sidekick-flag")).toHaveCount(0)
+        await expect(squiggle(b)).toHaveCount(0)
+        await expect(problemRow(b)).toHaveCount(0)
         expect(await blockSource(b)).toBe("2x + 3 = 7\n2x = 5")
 
-        await a.getByRole("button", { name: /Use suggestion/ }).click()
-        await expect.poll(() => blockSource(b)).toBe("2x + 3 = 7\nx = 2")
+        // the fix is a ghost on A's screen only, and accepting it syncs like a normal edit
+        await a.getByTestId("sidekick-fix").click()
+        await expect(ghost(a)).toBeVisible()
+        await b.waitForTimeout(400)
+        await expect(ghost(b)).toHaveCount(0)
+        expect(await blockSource(b)).toBe("2x + 3 = 7\n2x = 5")
+        await a.getByTestId("sidekick-accept").click()
+        await expect.poll(() => blockSource(b)).toBe("2x + 3 = 7\n2x = 4")
     } finally {
         await a.context().close()
         await b.context().close()

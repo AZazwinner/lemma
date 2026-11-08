@@ -62,6 +62,30 @@ def test_fix_cleans_delimiters_and_copes_with_a_model_that_ignores_the_format(cl
     assert body["latex"] == "\\frac{1}{2}" and body["why"] == ""
 
 
+def test_mock_fix_returns_the_whole_block_with_one_sentence_about_what_was_wrong(client, token):
+    block = "so $x^2$ and $\\frac{1}{2$ end"
+    body = post(client, token, "fix", {"latex": block, "error": "Expected '}', got 'EOF'"}).json()
+    assert body["latex"] == "so $x^2$ and $\\frac{1}{2}$ end"  # the rest of the block is untouched
+    assert body["changed"] is True and body["why"] == "The fraction was missing a closing brace."
+
+
+def test_mock_fix_repairs_a_misspelled_command_and_says_which(client, token):
+    body = post(client, token, "fix", {"latex": "$\\farc{1}{2}$"}).json()
+    assert body["latex"] == "$\\frac{1}{2}$" and "`\\farc`" in body["why"] and "`\\frac`" in body["why"]
+
+
+def test_mock_fix_says_so_when_there_is_nothing_to_repair(client, token):
+    body = post(client, token, "fix", {"latex": "$x^2$"}).json()
+    assert body["changed"] is False and body["latex"] == "$x^2$"
+
+
+def test_fix_keeps_the_delimiters_of_a_block_that_has_them(client, token, monkeypatch):
+    go_live(monkeypatch)
+    scripted(monkeypatch, "LATEX: $$\n\\frac{1}{2}\n$$\nWHY: Closed the brace.")
+    body = post(client, token, "fix", {"latex": "$$\n\\frac{1}{2\n$$"}).json()
+    assert body["latex"] == "$$\n\\frac{1}{2}\n$$" and body["why"] == "Closed the brace."
+
+
 def test_fix_says_when_nothing_changed(client, token, monkeypatch):
     go_live(monkeypatch)
     scripted(monkeypatch, "LATEX: x^2\nWHY: It was already valid.")
@@ -70,10 +94,44 @@ def test_fix_says_when_nothing_changed(client, token, monkeypatch):
 
 # --- check my work -----------------------------------------------------------
 
-def test_mock_check_flags_the_second_step(client, token):
+def test_mock_check_solves_the_steps_and_flags_the_one_that_does_not_follow(client, token):
     body = post(client, token, "check", {"steps": ["2x + 3 = 7", "2x = 5", "x = 2.5"]}).json()
     assert body["ok"] is False and body["step"] == 2
-    assert body["why"] and body["suggestion"] == "x = 2"
+    # it says why, in terms of this derivation, and proposes the step that should have been there
+    assert "x = 2" in body["why"] and r"\frac{5}{2}" in body["why"]
+    assert body["suggestion"] == "2x = 4"
+
+
+def test_mock_check_flags_a_step_that_contradicts_the_line_above(client, token):
+    body = post(client, token, "check", {"steps": ["2x + 3 = 7", "x = 2", "x = 3"]}).json()
+    assert body["ok"] is False and body["step"] == 3
+    assert body["why"] == "The line above says $x = 2$, not $x = 3$." and body["suggestion"] == "x = 2"
+
+
+def test_the_reasons_are_one_sentence_even_when_a_model_writes_more(client, token, monkeypatch):
+    go_live(monkeypatch)
+    scripted(monkeypatch, "LATEX: x^2\nWHY: The brace was missing. I added it, and nothing else changed.")
+    assert post(client, token, "fix", {"latex": "x^{2"}).json()["why"] == "The brace was missing."
+
+    scripted(monkeypatch, "NEXT: x = 3\nWHY: Divide by $2$. That isolates $x$.")
+    assert post(client, token, "next", {"steps": ["2x = 6"]}).json()["why"] == "Divide by $2$."
+
+    scripted(monkeypatch, "VERDICT: ERROR\nSTEP: 2\nWHY: It should be $2x = 4$. You subtracted wrongly.\nFIX: 2x = 4")
+    assert post(client, token, "check", {"steps": ["2x + 3 = 7", "2x = 5"]}).json()["why"] == "It should be $2x = 4$."
+
+
+def test_one_sentence_keeps_decimals_and_maths_together():
+    assert service.one_sentence("So $x = 2.5$ here. Then more.") == "So $x = 2.5$ here."
+    assert service.one_sentence("Used $a.b$ wrongly.") == "Used $a.b$ wrongly."
+    assert service.one_sentence("  ") == ""
+
+
+def test_mock_check_accepts_a_correct_derivation_and_one_it_cannot_read(client, token):
+    right = post(client, token, "check", {"steps": ["2x + 3 = 7", "2x = 4", "x = 2"]}).json()
+    assert right["ok"] is True and right["step"] is None and right["suggestion"] is None
+    # steps that are not linear equations in one variable are not second-guessed
+    unknown = post(client, token, "check", {"steps": ["a = 1", "b = 2"]}).json()
+    assert unknown["ok"] is True
 
 
 def test_mock_check_with_nothing_wrong(client, token):
@@ -117,9 +175,28 @@ def test_check_and_next_reject_bad_step_lists(client, token, steps):
 
 # --- suggest the next step ---------------------------------------------------
 
-def test_mock_next_suggests_a_step(client, token):
+def test_mock_next_suggests_one_step_that_follows_from_the_last_line(client, token):
     body = post(client, token, "next", {"steps": ["2x = 6"]}).json()
-    assert body == {"next": "x = 3", "done": False, "why": "Divide both sides by 2.", "cached": False, "mock": True}
+    assert body == {"next": "x = 3", "done": False, "why": "Divide both sides by $2$.", "cached": False, "mock": True}
+    first = post(client, token, "next", {"steps": ["2x + 3 = 7"]}).json()
+    assert first["next"] == "2x = 4" and "Subtract $3$" in first["why"]
+
+
+def test_mock_next_moves_everything_to_one_side_for_an_identity(client, token):
+    body = post(client, token, "next", {"steps": ["x^2 + 2x + 1 = (x + 1)^2"]}).json()
+    assert body["next"] == "x^2 + 2x + 1 - (x + 1)^2 = 0" and body["done"] is False  # in the writer's own spacing
+
+
+def test_mock_next_factors_a_quadratic(client, token):
+    body = post(client, token, "next", {"steps": ["x^2 - 5x + 6 = 0"]}).json()
+    assert body["next"] == "(x - 2)(x - 3) = 0"
+
+
+def test_next_keeps_only_the_first_step_when_a_model_lists_several(client, token, monkeypatch):
+    go_live(monkeypatch)
+    scripted(monkeypatch, "NEXT: 1. $2x = 4$\n2. $x = 2$\nWHY: Subtract 3.")
+    body = post(client, token, "next", {"steps": ["2x + 3 = 7"]}).json()
+    assert body["next"] == "2x = 4" and body["done"] is False
 
 
 def test_next_reports_a_finished_derivation(client, token):

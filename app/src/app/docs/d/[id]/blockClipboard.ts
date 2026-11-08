@@ -1,5 +1,5 @@
 
-const BLOCK_MARKER_ATTR = "data-mathboard-block"
+const BLOCK_MARKER_ATTR = "data-lemma-block"
 
 function escapeHtml(text: string): string {
     return text

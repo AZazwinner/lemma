@@ -14,7 +14,10 @@ export type SidekickStatus = {
 }
 
 export type LatexResult = { latex: string; cached: boolean; mock: boolean }
-export type ExplainResult = { summary: string; steps: string[]; cached: boolean; mock: boolean }
+/** `text` is 3 to 5 short sentences, one per line, with the maths between single dollar signs. */
+export type ExplainResult = { text: string; cached: boolean; mock: boolean }
+/** Markdown with maths in `$...$` and `$$...$$`; paragraphs and displayed equations are separated by blank lines. */
+export type WriteResult = { text: string; cached: boolean; mock: boolean }
 
 export type SidekickErrorKind =
     | "busy"
@@ -22,6 +25,8 @@ export type SidekickErrorKind =
     | "signed-out"
     | "forbidden"
     | "not-open"
+    /** The backend is running an older version of the sidekick than this page expects (it has no such endpoint, or answers in an old shape). */
+    | "outdated"
     | "upstream"
     | "network"
     | "invalid"
@@ -53,6 +58,7 @@ export function errorFromResponse(status: number, body: unknown, retryAfterHeade
     if (status === 401) return new SidekickApiError("signed-out")
     if (status === 403) return new SidekickApiError("forbidden")
     if (status === 409) return new SidekickApiError("not-open")
+    if (status === 404) return new SidekickApiError("outdated") // the backend has no such sidekick endpoint yet
     if (status === 422) return new SidekickApiError("invalid")
     return new SidekickApiError("upstream", undefined, typeof detail?.reason === "string" ? detail.reason : undefined)
 }
@@ -89,8 +95,20 @@ export const fetchSidekickStatus = () => request<SidekickStatus>("/sidekick/stat
 export const textToLatex = (text: string) =>
     request<LatexResult>("/sidekick/latex", { method: "POST", body: JSON.stringify({ text }) })
 
-export const explainLatex = (latex: string) =>
-    request<ExplainResult>("/sidekick/explain", { method: "POST", body: JSON.stringify({ latex }) })
+/**
+ * An answer that should carry `text`. A backend that predates this version answers explain in an older shape (a summary
+ * and steps), which the page cannot show: say so, rather than let it reach the screen as `undefined`.
+ */
+export function requireText<T extends object>(result: T): T & { text: string } {
+    if (typeof (result as { text?: unknown }).text !== "string") throw new SidekickApiError("outdated")
+    return result as T & { text: string }
+}
+
+export const explainLatex = async (latex: string) =>
+    requireText(await request<ExplainResult>("/sidekick/explain", { method: "POST", body: JSON.stringify({ latex }) }))
+
+export const writeText = async (text: string) =>
+    requireText(await request<WriteResult>("/sidekick/write", { method: "POST", body: JSON.stringify({ text }) }))
 
 export type FixResult = { latex: string; why: string; changed: boolean; cached: boolean; mock: boolean }
 export type CheckResult = {
@@ -122,6 +140,13 @@ export type IntoDocResult = { block_id: string; cached: boolean; mock: boolean }
 /** Same as textToLatex, but the Sidekick writes the answer into the live document, as a new block after `afterBlockId`. */
 export const latexIntoDoc = (docId: number, text: string, afterBlockId?: string) =>
     request<IntoDocResult>(`/sidekick/docs/${docId}/latex`, {
+        method: "POST",
+        body: JSON.stringify({ text, after_block_id: afterBlockId ?? null }),
+    })
+
+/** Same as writeText, but the Sidekick writes the passage into the live document, one block per paragraph or equation. */
+export const writeIntoDoc = (docId: number, text: string, afterBlockId?: string) =>
+    request<IntoDocResult>(`/sidekick/docs/${docId}/write`, {
         method: "POST",
         body: JSON.stringify({ text, after_block_id: afterBlockId ?? null }),
     })

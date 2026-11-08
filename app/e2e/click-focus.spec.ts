@@ -93,7 +93,7 @@ test.describe("clicking empty space focuses the nearest block", () => {
         await page.mouse.up()
         await page.waitForTimeout(300)
 
-        const selectedCount = await page.locator(".bg-blue-100").count()
+        const selectedCount = await page.locator('[data-block-index] > div[class*="bg-[var(--wash)]"]').count()
         expect(selectedCount).toBe(3)
         expect(await focusedBlockIndex(page)).toBeNull()
     })

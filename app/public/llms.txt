@@ -1,8 +1,8 @@
-# Mathboard
+# Lemma
 
 > A collaborative LaTeX editor that renders as you type. Built for proofs, papers, and problem sets.
 
-Mathboard is a block-based document editor for math-heavy writing. Type Markdown mixed with LaTeX (`$...$` for inline math, `$$...$$` for display math) and it renders live, in place, as you go, with no separate compile step. Documents are collaboratively edited in real time (multiple cursors, presence, live sync) and support version history, PDF/Markdown/HTML/plain-text export, and slash commands for inserting math symbols, headings, code blocks, tables, and images.
+Lemma is a block-based document editor for math-heavy writing. Type Markdown mixed with LaTeX (`$...$` for inline math, `$$...$$` for display math) and it renders live, in place, as you go, with no separate compile step. Documents are collaboratively edited in real time (multiple cursors, presence, live sync) and support version history, PDF/Markdown/HTML/plain-text export, and slash commands for inserting math symbols, headings, code blocks, tables, and images.
 
 ## Pages
 

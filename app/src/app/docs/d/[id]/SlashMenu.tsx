@@ -5,7 +5,7 @@ import { SLASH_COMMANDS, type SlashCommand } from "./slash-commands"
 export function filterSlashCommands(query: string): SlashCommand[] {
     const q = query.trim().toLowerCase()
     if (!q) return SLASH_COMMANDS
-    return SLASH_COMMANDS.filter((c) => c.label.toLowerCase().includes(q))
+    return SLASH_COMMANDS.filter((c) => c.label.toLowerCase().includes(q) || c.aliases?.some((alias) => alias.startsWith(q)))
 }
 
 export function SlashMenu({

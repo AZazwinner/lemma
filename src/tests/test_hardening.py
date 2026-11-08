@@ -56,7 +56,7 @@ def test_a_username_over_the_maximum_or_blank_is_rejected(client):
 def test_a_very_long_document_title_is_rejected(client):
     _, token = signup(client, "owner", "owner@example.com")
 
-    too_long = client.post("/docs/new", json={"title": "t" * 256, "template": "Math Notes"}, headers=auth(token))
+    too_long = client.post("/docs/new", json={"title": "t" * 256}, headers=auth(token))
     assert too_long.status_code == 422
 
     doc_id = create_doc(client, token)

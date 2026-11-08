@@ -8,7 +8,7 @@ from modules.sidekick.errors import ModelBusy, ModelError
 from modules.sidekick.limits import SlidingWindowLimiter, TTLCache
 from modules.sidekick.usage import seconds_until_reset, usage
 
-FEATURES = ["latex", "explain", "fix", "check", "next", "image"]
+FEATURES = ["latex", "explain", "fix", "check", "next", "write", "image"]
 
 
 class SidekickDisabled(Exception):
@@ -138,11 +138,16 @@ async def _run(
     return answer, False
 
 
-def clean_latex(raw: str) -> str:
-    """Strips code fences and math delimiters a model may add despite being told not to."""
+def strip_fences(raw: str) -> str:
+    """Removes a code fence a model may wrap its whole answer in."""
     text = raw.strip()
     text = re.sub(r"^```[a-zA-Z]*\s*\n?", "", text)
-    text = re.sub(r"\n?```$", "", text).strip()
+    return re.sub(r"\n?```$", "", text).strip()
+
+
+def clean_latex(raw: str) -> str:
+    """Strips code fences and math delimiters a model may add despite being told not to."""
+    text = strip_fences(raw)
     for left, right in (("$$", "$$"), ("\\[", "\\]"), ("\\(", "\\)"), ("$", "$")):
         if text.startswith(left) and text.endswith(right) and len(text) >= len(left) + len(right):
             inner = text[len(left) : len(text) - len(right)].strip()
@@ -153,24 +158,70 @@ def clean_latex(raw: str) -> str:
     return text
 
 
+_BRACKET_DISPLAY = re.compile(r"(?<!\\)\\\[([\s\S]+?)(?<!\\)\\\]")
+_BRACKET_INLINE = re.compile(r"(?<!\\)\\\((.+?)(?<!\\)\\\)")
+_DOLLAR_DISPLAY = re.compile(r"\$\$([\s\S]+?)\$\$")
+_ONE_LINE_DISPLAY = re.compile(r"^[ \t]*\$\$([^$\n]+?)\$\$[ \t]*$", re.MULTILINE)
+
+
+def normalize_math(text: str) -> str:
+    """The document writes maths as $...$ and $$...$$. A model that was told so can still answer with \\( \\) and \\[ \\],
+    which would show up as raw backslashes in the editor, so convert them."""
+    text = _BRACKET_DISPLAY.sub(lambda m: f"\n\n$$\n{m.group(1).strip()}\n$$\n\n", text)
+    text = _BRACKET_INLINE.sub(lambda m: f"${m.group(1).strip()}$", text)
+    # A line that is only $$ ... $$ is a displayed equation, and the page draws it as one only when the $$ are on their own lines.
+    text = _ONE_LINE_DISPLAY.sub(lambda m: f"$$\n{m.group(1).strip()}\n$$", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def _inline_math(text: str) -> str:
+    """Like normalize_math, but everything becomes inline $...$: an explanation is sentences, not displayed equations."""
+    text = _BRACKET_DISPLAY.sub(lambda m: f"${m.group(1).strip()}$", text)
+    text = _BRACKET_INLINE.sub(lambda m: f"${m.group(1).strip()}$", text)
+    return _DOLLAR_DISPLAY.sub(lambda m: "$" + re.sub(r"\s+", " ", m.group(1)).strip() + "$", text)
+
+
+def split_blocks(text: str) -> list[str]:
+    """Splits text into document blocks at blank lines, but never inside a $$ ... $$ equation or a code fence."""
+    blocks: list[str] = []
+    current: list[str] = []
+    in_math = in_code = False
+    for line in text.strip().splitlines():
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_code = not in_code
+        elif not in_code and stripped == "$$":
+            in_math = not in_math
+        if not stripped and not in_math and not in_code:
+            if current:
+                blocks.append("\n".join(current))
+                current = []
+            continue
+        current.append(line)
+    if current:
+        blocks.append("\n".join(current))
+    return blocks
+
+
 _STEP = re.compile(r"^\s*(?:\d+[.)]|[-*•])\s*(.+)$")
+MAX_EXPLANATION_LINES = 5
+MAX_EXPLANATION_LINE_CHARS = 500
 
 
-def parse_explanation(raw: str) -> tuple[str, list[str]]:
-    summary = ""
-    steps: list[str] = []
-    for line in raw.splitlines():
+def parse_explanation(raw: str) -> list[str]:
+    """The sentences of an explanation, one per line. Tolerates numbering, bullets and the old "SUMMARY:" format."""
+    sentences: list[str] = []
+    for line in _inline_math(strip_fences(raw)).splitlines():
         line = line.strip()
         if not line:
             continue
         if line.upper().startswith("SUMMARY:"):
-            summary = line[len("SUMMARY:") :].strip()
-            continue
+            line = line[len("SUMMARY:") :].strip()
         match = _STEP.match(line)
-        steps.append(match.group(1).strip() if match else line)
-    if not summary and steps:
-        summary = steps.pop(0)
-    return summary, steps[:8]
+        line = match.group(1).strip() if match else line
+        if line:
+            sentences.append(line[:MAX_EXPLANATION_LINE_CHARS])
+    return sentences[:MAX_EXPLANATION_LINES]
 
 
 async def to_latex(user_id: int, text: str, on_working=None) -> tuple[str, bool]:
@@ -181,12 +232,22 @@ async def to_latex(user_id: int, text: str, on_working=None) -> tuple[str, bool]
     return latex, from_cache
 
 
-async def explain(user_id: int, latex: str, on_working=None) -> tuple[str, list[str], bool]:
+async def explain(user_id: int, latex: str, on_working=None) -> tuple[str, bool]:
+    """A short explanation of what is in `latex`, as sentences separated by newlines."""
     answer, from_cache = await _run("explain", user_id, latex.strip(), on_working)
-    summary, steps = parse_explanation(answer)
-    if not summary and not steps:
+    sentences = parse_explanation(answer)
+    if not sentences:
         raise SidekickUpstreamError("empty explanation")
-    return summary, steps, from_cache
+    return "\n".join(sentences), from_cache
+
+
+async def write(user_id: int, description: str, on_working=None) -> tuple[str, bool]:
+    """Writes a passage (text with maths, in $ and $$) from a description."""
+    answer, from_cache = await _run("write", user_id, _normalize(description), on_working)
+    text = normalize_math(strip_fences(answer))
+    if not text:
+        raise SidekickUpstreamError("empty writing")
+    return text, from_cache
 
 
 IMAGE_MIME_TYPES = ("image/jpeg", "image/png", "image/webp")
@@ -231,6 +292,15 @@ def parse_fields(raw: str, keys: tuple[str, ...]) -> dict[str, str]:
     return {key: value.strip() for key, value in fields.items()}
 
 
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z$\\])")
+
+
+def one_sentence(text: str) -> str:
+    """The first sentence of `text`. A model asked for "one sentence" sometimes writes two; the page has room for one line."""
+    text = re.sub(r"\s+", " ", text).strip()
+    return _SENTENCE_END.split(text, maxsplit=1)[0] if text else ""
+
+
 def clean_steps(steps: list[str]) -> list[str]:
     return [re.sub(r"\s+", " ", step).strip() for step in steps if step.strip()]
 
@@ -240,17 +310,19 @@ def _numbered(steps: list[str]) -> str:
 
 
 async def fix(user_id: int, latex: str, error: str = "", on_working=None) -> dict:
-    """Repairs LaTeX that fails to render. `error` is the renderer's message, if the caller has one."""
+    """Repairs a block that contains LaTeX that fails to render, and returns the whole corrected block. `error` is the renderer's message, if the caller has one."""
     latex, error = latex.strip(), _normalize(error)[:500]
     prompt = prompts.wrap_input(latex) + (f"\n<error>\n{error}\n</error>" if error else "")
     answer, from_cache = await _run("fix", user_id, f"{latex}\n--\n{error}", on_working, prompt)
     fields = parse_fields(answer, ("LATEX", "WHY"))
-    fixed = clean_latex(fields.get("LATEX") or answer)
+    fixed = strip_fences(fields.get("LATEX") or answer)
+    if not latex.lstrip().startswith(("$", "\\[", "\\(")):
+        fixed = clean_latex(fixed)  # bare LaTeX in, bare LaTeX out: drop any wrapper the model added
     if not fixed:
         raise SidekickUpstreamError("empty fix")
     return {
         "latex": fixed,
-        "why": fields.get("WHY", ""),
+        "why": one_sentence(fields.get("WHY", "")),
         "changed": _normalize(fixed) != _normalize(latex),
         "cached": from_cache,
     }
@@ -275,10 +347,20 @@ async def check_work(user_id: int, steps: list[str], on_working=None) -> dict:
     return {
         "ok": is_ok,
         "step": None if is_ok else step,
-        "why": fields.get("WHY", ""),
+        "why": one_sentence(fields.get("WHY", "")),
         "suggestion": None if is_ok else (suggestion or None),
         "cached": from_cache,
     }
+
+
+def _single_step(text: str) -> str:
+    """Exactly one step: the first non-empty line, without a list marker or a trailing line break."""
+    for line in text.splitlines():
+        line = _STEP.sub(r"\1", line).strip()
+        line = re.sub(r"\s*\\\\\s*$", "", line).strip()  # a trailing \\ of an aligned block
+        if line:
+            return line
+    return ""
 
 
 async def next_step(user_id: int, steps: list[str], on_working=None) -> dict:
@@ -289,11 +371,12 @@ async def next_step(user_id: int, steps: list[str], on_working=None) -> dict:
     answer, from_cache = await _run("next", user_id, _numbered(steps), on_working)
     fields = parse_fields(answer, ("NEXT", "WHY"))
     # A model that ignores the format still gets a chance: its whole answer is taken as the step. An empty one is an error.
-    suggestion = clean_latex(fields["NEXT"] if "NEXT" in fields else answer)
+    # clean_latex before (a whole $$...$$ block) and after (a "$...$" on one list line) picking the one line
+    suggestion = clean_latex(_single_step(clean_latex(fields["NEXT"] if "NEXT" in fields else answer)))
     if not suggestion:
         raise SidekickUpstreamError("unreadable step")
     done = suggestion.strip().upper().rstrip(".") == "DONE"
-    return {"next": None if done else suggestion, "done": done, "why": fields.get("WHY", ""), "cached": from_cache}
+    return {"next": None if done else suggestion, "done": done, "why": one_sentence(fields.get("WHY", "")), "cached": from_cache}
 
 
 def status() -> dict:

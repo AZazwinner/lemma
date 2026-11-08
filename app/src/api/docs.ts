@@ -2,18 +2,12 @@ import { apiFetch } from "@/lib/api-fetch"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-export type CreateDocInput = {
-    template?: string
-    title?: string
-}
-
 export type CreateDocResponse = {
     doc_id: string
 }
 
-export async function createDoc(
-  data: CreateDocInput
-): Promise<CreateDocResponse> {
+/** Starts a new, blank document. */
+export async function createDoc(): Promise<CreateDocResponse> {
   const token = localStorage.getItem("token")
 
   const res = await apiFetch(`${API_URL}/docs/new`, {
@@ -22,7 +16,7 @@ export async function createDoc(
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({}),
   })
 
   if (!res.ok) {

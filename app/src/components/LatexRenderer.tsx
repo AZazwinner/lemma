@@ -9,6 +9,7 @@ import "katex/contrib/mhchem";
 import { cn } from "@/lib/utils";
 import { convertLatexBracketDelimiters } from "./latex-bracket-delimiters";
 import { SAFE_IMAGE_DATA_URI } from "@/app/docs/d/[id]/format-commands";
+import { rehypeEquationNumbers, resolveReferences } from "@/lib/equation-numbers";
 
 
 function urlTransform(value: string): string {
@@ -18,6 +19,13 @@ function urlTransform(value: string): string {
 
 interface Props {
   content: string;
+  /**
+   * The margin number of each displayed equation in `content`, in order, or null for none (see lib/equation-numbers.ts).
+   * Left out, no equation is numbered, which is right for a snippet that is not part of the document.
+   */
+  equations?: (number | null)[];
+  /** Label name to equation number, so `\eqref{name}` is written as "(3)". */
+  labels?: Record<string, number>;
 }
 
 
@@ -66,7 +74,7 @@ const components: Components = {
     ),
 };
 
-export default function LatexRenderer({ content }: Props) {
+export default function LatexRenderer({ content, equations, labels }: Props) {
   return (
     <div className="w-full text-base font-serif leading-relaxed min-h-[1.5em] break-words">
 
@@ -75,11 +83,12 @@ export default function LatexRenderer({ content }: Props) {
 
         // KaTeX's `trust` stays off: \htmlClass, \htmlId and \htmlData would let a collaborator put arbitrary CSS
         // classes and element ids into a shared document (a full-screen fake overlay, or ids that shadow the app's own).
-        rehypePlugins={[[rehypeKatex, { throwOnError: false }]]}
+        // The numbers go on after KaTeX has drawn the displays (see rehypeEquationNumbers).
+        rehypePlugins={[[rehypeKatex, { throwOnError: false }], [rehypeEquationNumbers, { numbers: equations }]]}
         components={components}
         urlTransform={urlTransform}
       >
-        {convertLatexBracketDelimiters(content)}
+        {resolveReferences(convertLatexBracketDelimiters(content), labels ?? {})}
       </ReactMarkdown>
     </div>
   );

@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import SigninPage from "./SigninPage"
 
 export const metadata: Metadata = {
-  title: "Sign in — Mathboard",
+  title: "Sign in — Lemma",
   alternates: { canonical: "/signin" },
 }
 

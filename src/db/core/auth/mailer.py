@@ -6,7 +6,7 @@ from email.message import EmailMessage
 from email.utils import formataddr, parseaddr
 from html import escape
 
-logger = logging.getLogger("mathboard.mail")
+logger = logging.getLogger("lemma.mail")
 
 EMAIL_ADDRESS = re.compile(r"[^@\s<>\"]+@[^@\s<>\"]+\.[^@\s<>\"]+")
 
@@ -38,7 +38,7 @@ def _from_header(configured: str | None, user: str) -> str:
         if EMAIL_ADDRESS.fullmatch(address):
             return configured
         logger.warning("SMTP_FROM=%r is not a valid sender, using %s instead. Write it as: Name <address@host>", configured, user)
-    return formataddr(("Mathboard", user))
+    return formataddr(("Lemma", user))
 
 
 def send_password_reset_email(email: str, reset_link: str) -> None:
@@ -49,7 +49,7 @@ def send_password_reset_email(email: str, reset_link: str) -> None:
 
     user = os.environ["SMTP_USER"]
     message = EmailMessage()
-    message["Subject"] = "Reset your Mathboard password"
+    message["Subject"] = "Reset your Lemma password"
     message["From"] = _from_header(os.getenv("SMTP_FROM"), user)
     message["To"] = email
     message.set_content(
