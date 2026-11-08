@@ -271,10 +271,11 @@ async def image_to_latex(user_id: int, data: bytes, mime_type: str, on_working=N
     # The cache key is the picture itself (a hash), so the same photo sent twice is answered once.
     digest = hashlib.sha256(data).hexdigest()
     answer, from_cache = await _run("image", user_id, f"{mime_type}:{digest}", on_working, prompts.IMAGE_PROMPT, (data, mime_type))
-    latex = clean_latex(answer)
-    if not latex:
+    # Markdown now (prose, $...$ and $$ blocks), not bare LaTeX, so only fences and bracket delimiters are normalized.
+    text = normalize_math(strip_fences(answer))
+    if not text:
         raise SidekickUpstreamError("empty transcription")
-    return latex, from_cache
+    return text, from_cache
 
 
 def parse_fields(raw: str, keys: tuple[str, ...]) -> dict[str, str]:

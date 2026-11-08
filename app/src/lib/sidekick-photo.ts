@@ -1,6 +1,5 @@
 import { imageToLatex, SidekickApiError } from "@/api/sidekick"
 import { checkImageFile, ImageProblem, imageProblemText, prepareImage } from "@/lib/sidekick-image"
-import { wrapLatex } from "@/lib/sidekick-text"
 import {
     clearSlot,
     editorFor,
@@ -41,14 +40,15 @@ export async function photoToLatex(file: File): Promise<void> {
         if (!isCurrentSlot(blockId, "suggestion", id)) return
         if (!resolveAnchor(ref.text, anchor)) return clearSlot(blockId, "suggestion")
 
-        const block = wrapLatex(result.latex, true)
+        // The backend now returns Markdown with its own $ and $$ delimiters, so it goes in as it is.
+        const block = result.latex.trim()
         setSlot(blockId, "suggestion", {
             id,
             phase: "ready",
             kind: "photo",
             mock: result.mock,
             proposal: {
-                label: "Suggested equation",
+                label: "Suggested text",
                 edit: replaceAll ? { anchor, mode: "replace", insert: block } : { anchor, mode: "after", insert: `\n${block}` },
                 blocksAfter: [],
                 show: { snippet: block },
