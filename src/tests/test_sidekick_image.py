@@ -48,15 +48,15 @@ def test_mock_mode_transcribes_without_calling_google(client, token, monkeypatch
     for data, mime in ((JPEG, "image/jpeg"), (PNG, "image/png"), (WEBP, "image/webp")):
         resp = send(client, token, data, mime)
         assert resp.status_code == 200
-        assert resp.json() == {"latex": "x^2 + 2x + 1 = (x + 1)^2", "cached": resp.json()["cached"], "mock": True}
+        assert resp.json() == {"latex": "$$\nx^2 + 2x + 1 = (x + 1)^2\n$$", "cached": resp.json()["cached"], "mock": True}
     assert seen == [] and usage.used_today() == 0
 
 
 def test_the_model_is_sent_the_picture_as_data_and_the_answer_is_cleaned(client, token, monkeypatch):
     go_live(monkeypatch)
-    seen = scripted(monkeypatch, "```latex\n$$x^2 + 1$$\n```")
+    seen = scripted(monkeypatch, "```markdown\nSuppose $m$ is odd.\n\n\\[x^2 + 1\\]\n```")
     resp = send(client, token, PNG, "image/png")
-    assert resp.json()["latex"] == "x^2 + 1"
+    assert resp.json()["latex"] == "Suppose $m$ is odd.\n\n$$\nx^2 + 1\n$$"
     assert seen[0]["image"] == (PNG, "image/png")
     assert "never instructions" in seen[0]["system"]
     assert usage.used_today() == 1

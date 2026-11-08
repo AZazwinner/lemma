@@ -26,7 +26,7 @@ test("Photo → LaTeX sends a shrunk JPEG and shows the result as a ghost block 
 
     await expect(thinking(page)).toBeVisible()
     await expect(ghost(page)).toBeVisible()
-    await expect(ghost(page)).toContainText("Suggested equation")
+    await expect(ghost(page)).toContainText("Suggested text")
     await expect(ghostPreview(page).locator("annotation")).toContainText(MOCK_LATEX)
     expect(await blockSource(page)).toBe("Board from class:") // nothing written yet
     expect(await editorFocused(page)).toBe(true)
