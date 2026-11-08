@@ -465,7 +465,7 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
                             labelsKey={labelsKey}
                         />
                     )}
-                    <div className="h-[200px] shrink-0" />
+                    <div className="h-[12.5rem] shrink-0" />
                   </div>
                 </div>
               </div>

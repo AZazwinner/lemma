@@ -21,7 +21,7 @@ export function UserAvatar({
     <div
       aria-label={name}
       className={cn(
-        "flex h-6 w-6 shrink-0 items-center justify-center rounded-full pr-px font-var text-[13px] leading-none text-white italic transition-transform duration-200 hover:-translate-y-0.5",
+        "flex h-6 w-6 shrink-0 items-center justify-center rounded-full pr-px font-var text-[0.8125rem] leading-none text-white italic transition-transform duration-200 hover:-translate-y-0.5",
         className
       )}
       style={{ backgroundColor: color }}

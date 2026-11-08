@@ -105,7 +105,7 @@ export function clearFlag(view: EditorView): boolean {
 const marksTheme = EditorView.baseTheme({
     ".cm-sidekick-hint": {
         marginLeft: "0.5em",
-        color: "var(--muted-foreground)",
+        color: "var(--ink-faint)",
         fontSize: "0.85em",
         fontStyle: "italic",
         userSelect: "none",
@@ -116,16 +116,18 @@ const marksTheme = EditorView.baseTheme({
         fontFamily: "var(--font-sans, sans-serif)",
         fontStyle: "normal",
         fontSize: "0.8em",
-        border: "1px solid var(--border)",
+        color: "var(--ink-soft)",
+        background: "var(--sheet)",
+        border: "1px solid var(--hairline)",
         borderRadius: "0.3em",
     },
     ".cm-sidekick-flag": {
         textDecorationLine: "underline",
         textDecorationStyle: "wavy",
-        textDecorationColor: "var(--destructive)",
+        textDecorationColor: "var(--pencil)",
         textDecorationThickness: "1px",
         textUnderlineOffset: "0.25em",
-        backgroundColor: "color-mix(in oklab, var(--destructive) 10%, transparent)",
+        backgroundColor: "var(--pencil-wash)",
         borderRadius: "0.2em",
     },
 })

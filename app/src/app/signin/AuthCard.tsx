@@ -14,7 +14,7 @@ import { AuthCardShell, AuthField, AuthFormError, AuthHeading, authLinkClass, sh
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MIN_PASSWORD_LENGTH = 8
 
-const submitClass = "mt-2 h-[42px] w-full text-sm"
+const submitClass = "mt-2 h-[2.625rem] w-full text-sm"
 
 export const CreateAccount = ({
     handleRedirect,

@@ -130,9 +130,10 @@ export function SidekickButton({ docId, readOnly = false }: { docId: number; rea
                             <p className="px-2.5 pb-0.5 pt-1 text-xs leading-snug text-ink-faint">
                                 {hasBlock ? "On your selection, or the block you're in." : "Click into a block first, or select some text."}
                             </p>
-                            {SIDEKICK_ACTIONS.map((action) => (
+                            {SIDEKICK_ACTIONS.map((action, i) => (
                                 <MenuItem
                                     key={action.name}
+                                    index={i}
                                     icon={<action.icon className="size-4" />}
                                     title={action.label}
                                     hint={action.hint}
@@ -177,6 +178,7 @@ export function SidekickButton({ docId, readOnly = false }: { docId: number; rea
                                     {collab && <p className="pt-1 text-xs leading-snug text-ink-faint">Sidekick adds it to the document as new blocks.</p>}
                                 </form>
                                 <MenuItem
+                                    index={SIDEKICK_ACTIONS.length}
                                     icon={<Camera className="size-4" />}
                                     title="Photo → LaTeX"
                                     hint="Read the maths in a picture"
@@ -234,12 +236,14 @@ function CollabSwitch({ on }: { on: boolean }) {
 }
 
 function MenuItem({
+    index,
     icon,
     title,
     hint,
     disabled,
     onClick,
 }: {
+    index: number
     icon: React.ReactNode
     title: string
     hint: string
@@ -251,9 +255,10 @@ function MenuItem({
             type="button"
             disabled={disabled}
             onClick={onClick}
-            className="group flex w-full items-center gap-3 rounded-lg px-2.5 py-1 text-left outline-none transition-colors hover:bg-tint focus-visible:bg-tint disabled:pointer-events-none disabled:opacity-50"
+            style={{ "--i": index } as React.CSSProperties}
+            className="sk-item group flex w-full items-center gap-3 rounded-lg px-2.5 py-1 text-left outline-none transition-colors hover:bg-tint focus-visible:bg-tint disabled:pointer-events-none disabled:opacity-50"
         >
-            <span className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-lg bg-muted text-ink-soft transition-colors duration-150 group-hover:bg-sheet group-hover:text-ink">
+            <span className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-lg bg-muted text-ink-soft transition-colors duration-150 group-hover:bg-sheet group-hover:text-ink group-focus-visible:bg-sheet">
                 {icon}
             </span>
             <span className="flex min-w-0 flex-col gap-px">

@@ -135,7 +135,7 @@ function DocRow({
                 }
               }}
               onBlur={commitRename}
-              className="min-h-[34px] min-w-0 flex-1 rounded-md border border-hairline bg-sheet px-2 text-[14px] font-medium text-ink outline-none transition-shadow focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/12"
+              className="min-h-[2.125rem] min-w-0 flex-1 rounded-md border border-hairline bg-sheet px-2 text-[0.875rem] font-medium text-ink outline-none transition-shadow focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/12"
             />
           </div>
         ) : (
@@ -148,10 +148,10 @@ function DocRow({
               {monogram(title)}
             </div>
 
-            <div className="flex min-h-[34px] min-w-0 flex-col justify-center">
-              <div className="truncate text-[14px] font-medium text-ink">{title}</div>
+            <div className="flex min-h-[2.125rem] min-w-0 flex-col justify-center">
+              <div className="truncate text-[0.875rem] font-medium text-ink">{title}</div>
               {doc._shared && (
-                <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-ink-faint">
+                <div className="mt-0.5 flex items-center gap-1.5 text-[0.75rem] text-ink-faint">
                   <span
                     className="h-1.5 w-1.5 shrink-0 rounded-full"
                     style={{ backgroundColor: colorForUser(doc.owner_id).color }}
@@ -170,7 +170,7 @@ function DocRow({
           </button>
         )}
 
-        <div className="shrink-0 text-[12.5px] tabular-nums text-ink-faint transition-colors duration-200 group-hover/row:text-ink">
+        <div className="shrink-0 text-[0.7812rem] tabular-nums text-ink-faint transition-colors duration-200 group-hover/row:text-ink">
           {formatRelativeTime(doc.updated_at)}
         </div>
 

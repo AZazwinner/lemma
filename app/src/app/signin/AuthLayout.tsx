@@ -48,8 +48,8 @@ export function AuthCardShell({
 }) {
   return (
     <div className="w-full max-w-[25rem]">
-      <div className="overflow-hidden rounded-[14px] border border-hairline bg-sheet shadow-[var(--shadow-sheet)] transition-shadow duration-300 focus-within:shadow-[0_0_0_4px_var(--wash),var(--shadow-sheet)]">
-        <div className="flex min-h-[60px] flex-wrap items-center justify-between gap-3 border-b border-hairline-soft bg-[color-mix(in_srgb,var(--tint)_45%,var(--sheet))] px-5 py-3">
+      <div className="overflow-hidden rounded-[0.875rem] border border-hairline bg-sheet shadow-[var(--shadow-sheet)] transition-shadow duration-300 focus-within:shadow-[0_0_0_4px_var(--wash),var(--shadow-sheet)]">
+        <div className="flex min-h-[3.75rem] flex-wrap items-center justify-between gap-3 border-b border-hairline-soft bg-[color-mix(in_srgb,var(--tint)_45%,var(--sheet))] px-5 py-3">
           <span className="flex items-center gap-2 text-sm font-medium">
             <Logo className="h-4 w-4" />
             lemma
@@ -58,7 +58,7 @@ export function AuthCardShell({
         </div>
         <div className="px-7 py-6">{children}</div>
         {footer && (
-          <div className="flex justify-center gap-1.5 border-t border-hairline-soft bg-[color-mix(in_srgb,var(--muted)_60%,var(--sheet))] px-5 py-3.5 text-[13px] text-ink-soft">
+          <div className="flex justify-center gap-1.5 border-t border-hairline-soft bg-[color-mix(in_srgb,var(--muted)_60%,var(--sheet))] px-5 py-3.5 text-[0.8125rem] text-ink-soft">
             {footer}
           </div>
         )}
@@ -70,8 +70,8 @@ export function AuthCardShell({
 export function AuthHeading({ title, subtitle }: { title: string; subtitle?: React.ReactNode }) {
   return (
     <div className="mb-6">
-      <h1 className="font-heading text-[34px] leading-[1.05] tracking-[-0.01em] text-heading">{title}</h1>
-      {subtitle && <p className="mt-2 text-[14.5px] text-ink-soft">{subtitle}</p>}
+      <h1 className="font-heading text-[2.125rem] leading-[1.05] tracking-[-0.01em] text-heading">{title}</h1>
+      {subtitle && <p className="mt-2 text-[0.9062rem] text-ink-soft">{subtitle}</p>}
     </div>
   )
 }
@@ -92,7 +92,7 @@ export const AuthField = forwardRef<HTMLInputElement, AuthFieldProps>(function A
   return (
     <div className="group/field space-y-1.5">
       <div className="flex items-center justify-between gap-2">
-        <Label htmlFor={id} className="text-[13px] text-ink-soft transition-colors group-focus-within/field:text-ink">
+        <Label htmlFor={id} className="text-[0.8125rem] text-ink-soft transition-colors group-focus-within/field:text-ink">
           {label}
         </Label>
         {aside}
@@ -102,7 +102,7 @@ export const AuthField = forwardRef<HTMLInputElement, AuthFieldProps>(function A
         <Input
           ref={ref}
           id={id}
-          className={cn("h-[42px] rounded-lg pl-9 text-[14.5px] md:text-[14.5px]", className)}
+          className={cn("h-[2.625rem] rounded-lg pl-9 text-[0.9062rem] md:text-[0.9062rem]", className)}
           {...input}
         />
       </div>
@@ -113,7 +113,7 @@ export const AuthField = forwardRef<HTMLInputElement, AuthFieldProps>(function A
 
 export function AuthFieldError({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mb-swap flex items-center gap-1.5 text-[12.5px] text-destructive">
+    <p className="mb-swap flex items-center gap-1.5 text-[0.7812rem] text-destructive">
       <CircleAlert className="size-3.5 shrink-0" aria-hidden />
       {children}
     </p>
@@ -122,7 +122,7 @@ export function AuthFieldError({ children }: { children: React.ReactNode }) {
 
 export function AuthFormError({ children }: { children: React.ReactNode }) {
   return (
-    <p role="alert" className="mb-swap rounded-r-md border-l-2 border-destructive bg-[var(--pencil-wash)] py-1.5 pl-2.5 text-[13.5px] text-destructive">
+    <p role="alert" className="mb-swap rounded-r-md border-l-2 border-destructive bg-[var(--pencil-wash)] py-1.5 pl-2.5 text-[0.8438rem] text-destructive">
       {children}
     </p>
   )
@@ -130,7 +130,7 @@ export function AuthFormError({ children }: { children: React.ReactNode }) {
 
 /** Underlined text link used inside account screens. */
 export const authLinkClass =
-  "font-medium text-ink underline decoration-hairline underline-offset-[3px] transition-colors hover:decoration-current"
+  "font-medium text-ink underline decoration-hairline underline-offset-[0.1875rem] transition-colors hover:decoration-current"
 
 /** Shake an input once after a failed submit. */
 export function shake(el: HTMLElement | null) {

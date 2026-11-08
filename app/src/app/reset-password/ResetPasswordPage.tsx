@@ -98,7 +98,7 @@ export default function ResetPasswordPage() {
 
                         {error && <AuthFormError>{error}</AuthFormError>}
 
-                        <Button className="mt-2 h-[42px] w-full text-sm" onClick={handleSubmit} disabled={loading || !canSubmit} aria-busy={loading}>
+                        <Button className="mt-2 h-[2.625rem] w-full text-sm" onClick={handleSubmit} disabled={loading || !canSubmit} aria-busy={loading}>
                             {loading ? <><UnitSpinner /><span className="mb-swap">Updating…</span></> : "Update password"}
                         </Button>
                     </div>

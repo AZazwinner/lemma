@@ -174,14 +174,14 @@ export function ShareContent({
               value={"owner"}
               disabled
             >
-              <SelectTrigger className="w-[90px] h-8">
+              <SelectTrigger className="w-[5.625rem] h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent
                 position="popper"
                 sideOffset={4}
                 avoidCollisions={false}
-                className="min-w-[90px] w-[90px]">
+                className="min-w-[5.625rem] w-[5.625rem]">
                 <SelectItem value="owner" className="pl-4">Owner</SelectItem>
               </SelectContent>
             </Select>
@@ -212,14 +212,14 @@ export function ShareContent({
                   disabled={doc.permission === "read"}
                   onValueChange={(value: string) => handleChangePermission(user.user_id, user.username, value as "read" | "write")}
                 >
-                  <SelectTrigger className="w-[90px] h-8">
+                  <SelectTrigger className="w-[5.625rem] h-8">
                     <SelectValue>{PERMISSION_LABELS[user.permission]}</SelectValue>
                   </SelectTrigger>
                   <SelectContent
                     position="popper"
                     sideOffset={4}
                     avoidCollisions={false}
-                    className="min-w-[110px] w-[110px]">
+                    className="min-w-[6.875rem] w-[6.875rem]">
                     <SelectItem value="read" className="pl-4">Can view</SelectItem>
                     <SelectItem value="write" className="pl-4">Can edit</SelectItem>
                   </SelectContent>

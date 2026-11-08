@@ -300,20 +300,20 @@ export default function DocsPage() {
             }}
             placeholder="Search documents"
             aria-label="Search documents"
-            className="h-[34px] w-full rounded-lg border border-hairline bg-desk pr-10 pl-8 text-sm text-ink outline-none transition-[border-color,box-shadow,background-color,padding] duration-300 placeholder:text-ink-faint group-data-[active=true]/search:border-ring group-data-[active=true]/search:bg-sheet group-data-[active=true]/search:pl-3 group-data-[active=true]/search:ring-4 group-data-[active=true]/search:ring-ring/12 [&::-webkit-search-cancel-button]:hidden"
+            className="h-[2.125rem] w-full rounded-lg border border-hairline bg-desk pr-10 pl-8 text-sm text-ink outline-none transition-[border-color,box-shadow,background-color,padding] duration-300 placeholder:text-ink-faint group-data-[active=true]/search:border-ring group-data-[active=true]/search:bg-sheet group-data-[active=true]/search:pl-3 group-data-[active=true]/search:ring-4 group-data-[active=true]/search:ring-ring/12 [&::-webkit-search-cancel-button]:hidden"
           />
           <button
             type="submit"
             aria-label="Search"
             tabIndex={searchFocused || query !== "" ? 0 : -1}
-            className="absolute top-1/2 left-1 flex h-[26px] w-[26px] -translate-y-1/2 items-center justify-center rounded-md text-ink-faint transition-[left,background-color,color,scale] duration-[400ms] ease-[cubic-bezier(0.2,0.7,0.2,1)] group-data-[active=true]/search:left-[calc(100%-30px)] group-data-[active=true]/search:bg-primary group-data-[active=true]/search:text-primary-foreground hover:scale-105 active:scale-95"
+            className="absolute top-1/2 left-1 flex h-[1.625rem] w-[1.625rem] -translate-y-1/2 items-center justify-center rounded-md text-ink-faint transition-[left,background-color,color,scale] duration-[400ms] ease-[cubic-bezier(0.2,0.7,0.2,1)] group-data-[active=true]/search:left-[calc(100%-30px)] group-data-[active=true]/search:bg-primary group-data-[active=true]/search:text-primary-foreground hover:scale-105 active:scale-95"
           >
             <Search className="h-3.5 w-3.5 transition-transform duration-[400ms] group-data-[active=true]/search:rotate-90" />
           </button>
         </form>
 
         <div className="flex items-center gap-2">
-          <Button onClick={handleNewDocument} data-anim="lift" className="h-[34px] px-3.5">
+          <Button onClick={handleNewDocument} data-anim="lift" className="h-[2.125rem] px-3.5">
             <FilePlus2 className="h-4 w-4" />
             New document
           </Button>
@@ -323,7 +323,7 @@ export default function DocsPage() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" aria-label="Account menu" className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
-                <UserAvatar userId={user.id} name={user.username} className="h-8 w-8 text-[15px]" />
+                <UserAvatar userId={user.id} name={user.username} className="h-8 w-8 text-[0.9375rem]" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -363,14 +363,14 @@ export default function DocsPage() {
                       setTab(t.key)
                     }}
                     className={cn(
-                      "group/tab relative pb-2.5 text-[13px] font-medium transition-colors duration-200",
+                      "group/tab relative pb-2.5 text-[0.8125rem] font-medium transition-colors duration-200",
                       tab === t.key ? "text-ink" : "text-ink-faint hover:text-ink"
                     )}
                   >
                     {t.label}
                     <span
                       className={cn(
-                        "ml-1.5 inline-flex h-[18px] min-w-5 items-center justify-center rounded-full px-1.5 text-[11.5px] font-medium tabular-nums transition-[background-color,color,transform] duration-200 group-hover/tab:-translate-y-px",
+                        "ml-1.5 inline-flex h-[1.125rem] min-w-5 items-center justify-center rounded-full px-1.5 text-[0.7188rem] font-medium tabular-nums transition-[background-color,color,transform] duration-200 group-hover/tab:-translate-y-px",
                         tab === t.key ? "bg-primary text-primary-foreground" : "bg-muted text-ink-faint"
                       )}
                     >
@@ -380,10 +380,10 @@ export default function DocsPage() {
                       <motion.span
                         layoutId="doc-tab-ink"
                         transition={{ type: "spring", stiffness: 420, damping: 36 }}
-                        className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-primary"
+                        className="absolute inset-x-0 -bottom-px h-[0.125rem] rounded-full bg-primary"
                       />
                     ) : (
-                      <span className="absolute inset-x-0 -bottom-px h-[2px] origin-center scale-x-0 rounded-full bg-hairline transition-transform duration-200 group-hover/tab:scale-x-100" />
+                      <span className="absolute inset-x-0 -bottom-px h-[0.125rem] origin-center scale-x-0 rounded-full bg-hairline transition-transform duration-200 group-hover/tab:scale-x-100" />
                     )}
                   </button>
                 ))}

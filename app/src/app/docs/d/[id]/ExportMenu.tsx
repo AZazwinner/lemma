@@ -73,7 +73,7 @@ export function ExportMenu({ onExport }: { onExport: (format: ExportFormat) => v
                     <DropdownMenuItem key={format} onSelect={() => run(format, label)} className="gap-3 py-2">
                         <Icon className="h-4 w-4 text-ink-faint" />
                         <span className="flex-1">{label}</span>
-                        <span className="font-mono text-[11.5px] text-ink-faint">{description}</span>
+                        <span className="font-mono text-[0.7188rem] text-ink-faint">{description}</span>
                     </DropdownMenuItem>
                 ))}
             </DropdownMenuContent>

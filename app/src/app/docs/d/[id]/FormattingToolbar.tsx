@@ -94,7 +94,7 @@ function ToolbarButton({
             className={cn(
                 "text-ink-soft hover:text-ink",
                 glyphMarkup && "min-w-9 px-1.5 [&_.katex]:inline-block [&_.katex]:transition-transform [&_.katex]:duration-250 hover:[&_.katex]:scale-110",
-                glyph === "x" ? "[&_.katex]:text-[16px]" : glyph?.includes("frac") || glyph?.includes("matrix") ? "[&_.katex]:text-[12px]" : "[&_.katex]:text-[15px]",
+                glyph === "x" ? "[&_.katex]:text-[1rem]" : glyph?.includes("frac") || glyph?.includes("matrix") ? "[&_.katex]:text-[0.75rem]" : "[&_.katex]:text-[0.9375rem]",
                 isActive && "bg-tint text-ink"
             )}
         >

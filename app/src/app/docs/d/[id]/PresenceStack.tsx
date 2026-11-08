@@ -33,7 +33,7 @@ export function PresenceStack({ users }: { users: PresentUser[] }) {
             className={cn(
               avatar,
               "text-white outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-              u.kind !== "ai" && "pr-px font-var text-[14px] italic"
+              u.kind !== "ai" && "pr-px font-var text-[0.875rem] italic"
             )}
             style={{ backgroundColor: u.color }}
           >
@@ -46,7 +46,7 @@ export function PresenceStack({ users }: { users: PresentUser[] }) {
           <div
             tabIndex={0}
             aria-label={`${overflow} more`}
-            className={`${avatar} bg-tint font-serif text-[11px] text-ink-soft outline-none focus-visible:ring-2 focus-visible:ring-ring/40`}
+            className={`${avatar} bg-tint font-serif text-[0.6875rem] text-ink-soft outline-none focus-visible:ring-2 focus-visible:ring-ring/40`}
           >
             +{overflow}
           </div>

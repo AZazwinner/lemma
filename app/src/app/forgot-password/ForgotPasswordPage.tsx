@@ -77,7 +77,7 @@ export default function ForgotPasswordPage() {
 
                         {error && <AuthFormError>{error}</AuthFormError>}
 
-                        <Button className="mt-2 h-[42px] w-full text-sm" onClick={handleSubmit} disabled={loading || !email.trim()} aria-busy={loading}>
+                        <Button className="mt-2 h-[2.625rem] w-full text-sm" onClick={handleSubmit} disabled={loading || !email.trim()} aria-busy={loading}>
                             {loading ? <><UnitSpinner /><span className="mb-swap">Sending…</span></> : "Send reset link"}
                         </Button>
                     </div>
