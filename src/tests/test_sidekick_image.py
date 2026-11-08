@@ -155,3 +155,26 @@ def test_the_key_never_appears(client, token, monkeypatch, capsys):
     body = send(client, token).text
     out = capsys.readouterr()
     assert SECRET not in body and SECRET not in out.out and SECRET not in out.err
+
+
+SENTENCES = (
+    r"\text{ next step is for each of } k \text{ odd digits we} \\" + "\n"
+    r"\text{So that are } {}^{13}C_k \cdot 4^k \text{ ways of making} \\" + "\n"
+    "= 1,270,932,914,164"
+)
+SENTENCES_AS_MARKDOWN = (
+    "next step is for each of $k$ odd digits we\n"
+    r"So that are ${}^{13}C_k \cdot 4^k$ ways of making" + "\n"
+    "$= 1,270,932,914,164$"
+)
+
+
+@pytest.mark.parametrize("answer", [SENTENCES, f"$$\n{SENTENCES}\n$$"])
+def test_a_page_written_as_text_commands_comes_back_as_markdown(answer):
+    assert service.repair_text_commands(answer) == SENTENCES_AS_MARKDOWN
+
+
+def test_a_short_text_command_inside_an_equation_is_left_alone():
+    equation = "$$\n" + r"f(x) = \begin{cases} 1 & \text{ if } x > 0 \ 0 & \text{ otherwise} \end{cases}" + "\n$$"
+    assert service.repair_text_commands(equation) == equation
+    assert service.repair_text_commands("Suppose $m$ is odd.") == "Suppose $m$ is odd."
