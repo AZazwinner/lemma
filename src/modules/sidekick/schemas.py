@@ -21,8 +21,21 @@ class ExplainRequest(BaseModel):
 
 
 class ExplainResponse(BaseModel):
-    summary: str
-    steps: list[str]
+    # 3 to 5 short sentences, one per line, with maths written between single dollar signs.
+    text: str
+    cached: bool
+    mock: bool
+
+
+class WriteRequest(BaseModel):
+    """A description of what to write, such as "a proof that there are infinitely many primes"."""
+
+    text: str = Field(min_length=1, max_length=MAX_TEXT_CHARS)
+
+
+class WriteResponse(BaseModel):
+    # Markdown with maths in $...$ and $$...$$; paragraphs and displayed equations are separated by blank lines.
+    text: str
     cached: bool
     mock: bool
 
@@ -46,6 +59,11 @@ class LatexIntoDocRequest(BaseModel):
 
 class ExplainIntoDocRequest(BaseModel):
     latex: str = Field(min_length=1, max_length=MAX_LATEX_CHARS)
+    after_block_id: str | None = Field(default=None, max_length=64)
+
+
+class WriteIntoDocRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_TEXT_CHARS)
     after_block_id: str | None = Field(default=None, max_length=64)
 
 

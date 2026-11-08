@@ -154,9 +154,9 @@ def done(room: YRoom, linger: float | None = None) -> None:
         presence.finish(LINGER_SECONDS if linger is None else linger)
 
 
-async def insert_block_after(room: YRoom, after_block_id: str | None, content: str) -> str:
-    """Adds a paragraph block holding `content` after the block with id `after_block_id` (or at the end), as Sidekick. Returns the new block's id."""
-    block_id = str(uuid.uuid4())
+async def insert_blocks_after(room: YRoom, after_block_id: str | None, contents: list[str]) -> list[str]:
+    """Adds one paragraph block per item of `contents`, in order, after the block with id `after_block_id` (or at the end), as Sidekick. Returns the new blocks' ids."""
+    block_ids = [str(uuid.uuid4()) for _ in contents]
     created: dict = {}
 
     def edit(ydoc: pycrdt.Doc) -> None:
@@ -168,8 +168,10 @@ async def insert_block_after(room: YRoom, after_block_id: str | None, content: s
                     index = i + 1
                     break
         with ydoc.transaction():
-            blocks.insert(index, pycrdt.Map({"id": block_id, "type": "paragraph", "text": pycrdt.Text(content)}))
-        created["text"] = blocks[index]["text"]
+            for offset, (block_id, content) in enumerate(zip(block_ids, contents)):
+                blocks.insert(index + offset, pycrdt.Map({"id": block_id, "type": "paragraph", "text": pycrdt.Text(content)}))
+        if contents:
+            created["text"] = blocks[index + len(contents) - 1]["text"]
 
     if registry.rooms.get(room.doc_id) is not room:
         raise HTTPException(409, detail={"code": "not_open", "message": "Open the document first."})
@@ -179,4 +181,9 @@ async def insert_block_after(room: YRoom, after_block_id: str | None, content: s
     presence.stay(LINGER_SECONDS)
     if "text" in created:
         presence.point_at_end_of(created["text"])
-    return block_id
+    return block_ids
+
+
+async def insert_block_after(room: YRoom, after_block_id: str | None, content: str) -> str:
+    """Adds a paragraph block holding `content` after the block with id `after_block_id` (or at the end), as Sidekick. Returns the new block's id."""
+    return (await insert_blocks_after(room, after_block_id, [content]))[0]

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { errorFromResponse } from "./sidekick"
+import { errorFromResponse, requireText, SidekickApiError } from "./sidekick"
 
 describe("errorFromResponse", () => {
     it("reads the retry hint from the body, then the header", () => {
@@ -18,5 +18,26 @@ describe("errorFromResponse", () => {
         expect(errorFromResponse(502, { detail: { code: "upstream_error", reason: "HTTP 503" } }).reason).toBe("HTTP 503")
         expect(errorFromResponse(502, { detail: { reason: 5 } }).reason).toBeUndefined()
         expect(errorFromResponse(500, null).kind).toBe("upstream")
+    })
+
+    it("treats a missing endpoint as a backend that is older than this page", () => {
+        expect(errorFromResponse(404, null).kind).toBe("outdated")
+    })
+})
+
+describe("requireText", () => {
+    it("passes an answer that has its text", () => {
+        expect(requireText({ text: "It squares $x$.", cached: false })).toMatchObject({ text: "It squares $x$." })
+    })
+
+    it("turns an older backend's answer (a summary and steps, no text) into an 'outdated' error instead of undefined", () => {
+        const oldAnswer = { summary: "It squares x.", steps: ["Take x."], cached: false, mock: false }
+        expect(() => requireText(oldAnswer)).toThrow(SidekickApiError)
+        try {
+            requireText(oldAnswer)
+        } catch (error) {
+            expect((error as SidekickApiError).kind).toBe("outdated")
+        }
+        expect(() => requireText({ text: null })).toThrow(SidekickApiError)
     })
 })

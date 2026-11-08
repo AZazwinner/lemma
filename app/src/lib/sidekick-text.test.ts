@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest"
 import {
     explainSource,
-    explanationText,
-    isUnchanged,
+    explanationLines,
+    explanationNote,
     latexSource,
     mentionAt,
+    minimalEdit,
     noticeFor,
-    previewOf,
+    splitBlocks,
     wrapLatex,
 } from "./sidekick-text"
 
@@ -65,23 +66,44 @@ describe("wrapLatex", () => {
     })
 })
 
-describe("isUnchanged", () => {
-    it("is true only while the requested text is still exactly there", () => {
-        const source = latexSource("one half", 0, 0)!
-        expect(isUnchanged("one half", source)).toBe(true)
-        expect(isUnchanged("one half!", source)).toBe(false)
-        expect(isUnchanged("x one half", source)).toBe(false)
+describe("explanation text", () => {
+    it("reads an explanation as sentences, one per line, and as one paragraph for a note", () => {
+        const text = "It squares $x$.\n\n  The result is never negative.  \n"
+        expect(explanationLines(text)).toEqual(["It squares $x$.", "The result is never negative."])
+        expect(explanationNote(text)).toBe("It squares $x$. The result is never negative.")
     })
 })
 
-describe("previews and text", () => {
-    it("shortens long LaTeX for the ghost", () => {
-        expect(previewOf("a".repeat(200), 10)).toBe("aaaaaaaaa…")
-        expect(previewOf("a \n  b")).toBe("a b")
+describe("minimalEdit", () => {
+    it("is null when nothing changed", () => {
+        expect(minimalEdit("x^2", "x^2")).toBeNull()
     })
 
-    it("formats an explanation for Insert below", () => {
-        expect(explanationText("It squares x.", ["Take x.", "Multiply."])).toBe("It squares x.\n1. Take x.\n2. Multiply.")
+    it("replaces only the part that differs, leaving the shared start and end alone", () => {
+        const before = "so $x^2$ and $\\frac{1}{2$ end"
+        const after = "so $x^2$ and $\\frac{1}{2}$ end"
+        const edit = minimalEdit(before, after)!
+        const at = before.indexOf("2$ end") + 1
+        expect(edit).toEqual({ from: at, to: at, insert: "}" })
+        expect(before.slice(0, edit.from) + edit.insert + before.slice(edit.to)).toBe(after)
+    })
+
+    it("handles a replacement, a deletion and a wholly different text", () => {
+        expect(minimalEdit("abcdef", "abXef")).toEqual({ from: 2, to: 4, insert: "X" })
+        expect(minimalEdit("abc", "ac")).toEqual({ from: 1, to: 2, insert: "" })
+        expect(minimalEdit("abc", "xyz")).toEqual({ from: 0, to: 3, insert: "xyz" })
+        expect(minimalEdit("aXa", "aXXa")).toEqual({ from: 2, to: 2, insert: "X" })
+    })
+})
+
+describe("splitBlocks", () => {
+    it("splits at blank lines but keeps a $$ equation and a code fence whole", () => {
+        const text = "First.\n\n$$\na\n\nb\n$$\n\nSecond.\n\n```\ncode\n\nmore\n```\n"
+        expect(splitBlocks(text)).toEqual(["First.", "$$\na\n\nb\n$$", "Second.", "```\ncode\n\nmore\n```"])
+    })
+
+    it("has no blocks for blank text", () => {
+        expect(splitBlocks("  \n\n ")).toEqual([])
     })
 })
 
@@ -101,6 +123,12 @@ describe("noticeFor", () => {
         expect(noticeFor("upstream", undefined, "empty answer").text).toContain("no answer")
         expect(noticeFor("upstream", undefined, "something else entirely").text).toBe("The sidekick couldn't answer. Try again.")
         expect(noticeFor("upstream").text).toBe("The sidekick couldn't answer. Try again.")
+    })
+
+    it("says calmly, and as information, when the backend is older than the page", () => {
+        const notice = noticeFor("outdated")
+        expect(notice.kind).toBe("info")
+        expect(notice.text).toMatch(/older version.*Restart the backend/)
     })
 
     it("never leaks details for other failures", () => {

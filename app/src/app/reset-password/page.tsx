@@ -4,7 +4,7 @@ import ResetPasswordPage from "./ResetPasswordPage"
 
 
 export const metadata: Metadata = {
-  title: "Reset password — Mathboard",
+  title: "Reset password — Lemma",
   robots: { index: false, follow: false },
 }
 

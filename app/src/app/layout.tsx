@@ -21,7 +21,7 @@ const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
 });
 
-const title = "Mathboard. Write math like it's a document";
+const title = "Lemma. Write math like it's a document";
 const description =
   "A collaborative LaTeX editor that renders as you type. Built for proofs, papers, and problem sets.";
 
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     title,
     description,
     type: "website",
-    siteName: "Mathboard",
+    siteName: "Lemma",
     url: "/",
   },
   twitter: {
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
 const STRUCTURED_DATA = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  name: "Mathboard",
+  name: "Lemma",
   description,
   url: siteUrl,
 };

@@ -67,7 +67,7 @@ export default function OpengraphImage() {
         </div>
 
         <div style={{ display: "flex", fontSize: 76, fontWeight: 700, color: INK, letterSpacing: -2 }}>
-          Mathboard
+          Lemma
         </div>
         <div style={{ display: "flex", fontSize: 32, color: MUTED, marginTop: 18 }}>
           Write math like it&apos;s a document

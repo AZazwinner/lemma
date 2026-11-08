@@ -10,7 +10,7 @@ import { ExportMenu } from "./ExportMenu"
 import { deleteDoc, DocumentResponsePermission, restoreDocVersion } from "@/api/docs"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-fetch"
-import { ArrowLeft, Eye, Trash2 } from "lucide-react"
+import { ArrowLeft, Eye, TableOfContents, Trash2 } from "lucide-react"
 import { Tip } from "@/components/ui/tooltip"
 import { UnitSpinner } from "@/components/ui/spinner"
 import { SaveStatus } from "./SaveStatus"
@@ -20,6 +20,8 @@ import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
 import { VersionHistoryPopover } from "./VersionHistoryPopover"
 import type { ConnectionStatus } from "./yjs/provider"
 import { SidekickButton } from "@/components/sidekick/SidekickButton"
+import { useOutlinePanel } from "./outline/useOutlinePanel"
+import { cn } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -69,6 +71,7 @@ export default function DocPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [restoring, setRestoring] = useState(false)
   const editorRef = useRef<TextEditorHandle>(null)
+  const outlinePanel = useOutlinePanel()
 
   function applyFetched(result: DocumentResponsePermission | "no-token" | null) {
     if (result === "no-token") {
@@ -170,6 +173,23 @@ export default function DocPage() {
             </Button>
           </Tip>
 
+          <Tip label={outlinePanel.open ? "Hide outline" : "Show outline"}>
+            <Button
+              ref={outlinePanel.triggerRef}
+              variant="ghost"
+              size="icon"
+              aria-label="Document outline"
+              aria-expanded={outlinePanel.open}
+              aria-controls="doc-outline"
+              data-testid="outline-toggle"
+              data-anim="lift"
+              className={cn("text-ink-soft", outlinePanel.open && "bg-tint text-ink")}
+              onClick={() => outlinePanel.setOpen(!outlinePanel.open)}
+            >
+              <TableOfContents className="h-4 w-4" />
+            </Button>
+          </Tip>
+
           <input
             value={title}
             onChange={handleTitleChange}
@@ -233,6 +253,7 @@ export default function DocPage() {
           user={user}
           onStatusChange={setStatus}
           onPresenceChange={setPresence}
+          outlinePanel={outlinePanel}
         />
       )}
 

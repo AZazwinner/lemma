@@ -24,7 +24,7 @@ export default function GlobalError({
                     <div>
                         <h1 style={{ fontSize: "1.5rem", fontWeight: 600 }}>Something went wrong</h1>
                         <p style={{ color: "#737373", maxWidth: "24rem" }}>
-                            Mathboard hit an unexpected error. Try reloading the page.
+                            Lemma hit an unexpected error. Try reloading the page.
                         </p>
                     </div>
                     <button

@@ -14,6 +14,11 @@ import type { ConnectionStatus } from "./yjs/provider"
 import LatexRenderer from "@/components/LatexRenderer"
 import { extractBlocksFromClipboardEvent, writeBlocksToClipboard } from "./blockClipboard"
 import { downloadHtml, downloadMarkdown, downloadPdf, downloadPlainText, type ExportBlock } from "./export"
+import { SelectionToolbar } from "@/components/sidekick/SelectionToolbar"
+import { pruneBlocks, setHost } from "@/lib/sidekick"
+import { OutlinePanel } from "./outline/OutlinePanel"
+import { useDocOutline } from "./outline/useDocOutline"
+import type { OutlinePanelState } from "./outline/useOutlinePanel"
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL
 
@@ -26,6 +31,8 @@ type Props = {
     user: User
     onStatusChange?: (status: ConnectionStatus) => void
     onPresenceChange?: (users: PresentUser[]) => void
+    /** The Outline panel's open/closed state, which the page's top bar toggles. */
+    outlinePanel: OutlinePanelState
 }
 
 export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEditor({
@@ -33,6 +40,7 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
     user,
     onStatusChange,
     onPresenceChange,
+    outlinePanel,
 }, ref) {
     // Called on every (re)connect, because a ticket only lives a minute.
     const wsUrl = useCallback(async () => {
@@ -130,7 +138,7 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
     const contentY = (clientY: number) => clientY + (containerRef.current?.scrollTop ?? 0)
 
     const handleContainerMouseDown = (e: React.MouseEvent) => {
-        if (!(e.target instanceof Element) || e.target.closest("[data-block-index]")) return
+        if (!(e.target instanceof Element) || e.target.closest("[data-block-index], [data-sidekick-card]")) return
         e.preventDefault()
         marqueeRef.current = { startX: e.clientX, startContentY: contentY(e.clientY), lastX: e.clientX, lastClientY: e.clientY, moved: false }
     }
@@ -266,8 +274,12 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
     const [activeView, setActiveView] = useState<EditorView | null>(null)
 
 
-    const handleFocusView = (view: EditorView) => {
+    // The block the cursor is in, or was last in: it tells the Outline which section the writer is in.
+    const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null)
+
+    const handleFocusView = (view: EditorView, blockId: string) => {
         setActiveView(view)
+        setFocusedBlockId(blockId)
         clearSelection()
     }
 
@@ -298,14 +310,47 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
 
     const handleContainerClick = (e: React.MouseEvent) => {
         if (consumeClickSuppression()) return
-        if (!(e.target instanceof Element) || !e.target.closest("[data-block-index]")) {
+        // A click on one of the sidekick's cards (under a block) belongs to the card: it never moves the focus.
+        if (!(e.target instanceof Element) || !e.target.closest("[data-block-index], [data-sidekick-card]")) {
             clearSelection()
             focusNearestBlock(e.clientX, e.clientY)
         }
     }
 
 
-    const [, bumpToolbar] = useReducer((n: number) => n + 1, 0)
+    const [toolbarTick, bumpToolbar] = useReducer((n: number) => n + 1, 0)
+
+    // The sidekick adds blocks (an explanation as a note, text it wrote) through the same calls typing uses, so they sync like any edit.
+    useEffect(() => {
+        setHost({
+            blockIds: () => blocksRef.current.map((b) => b.id),
+            insertBlocksAfter: (blockId, contents) => {
+                const index = blocksRef.current.findIndex((b) => b.id === blockId)
+                actionsRef.current.insertBlocks(index === -1 ? blocksRef.current.length : index + 1, contents)
+            },
+        })
+        return () => setHost(null)
+    }, [])
+
+    // A sidekick answer belongs to its block: when the block is deleted, the answer goes too.
+    useEffect(() => {
+        if (blocks.length > 0) pruneBlocks(blocks.map((b) => b.id))
+    }, [blocks])
+
+    const blockIds = useMemo(() => blocks.map((b) => b.id), [blocks])
+
+    // Which displayed equations carry a number in the margin, and which, is decided over the whole document (lib/equation-numbers.ts)
+    // and worked out once, with the headings, for the Outline: the margin, the sidekick's cards and the Outline all read this one
+    // value (lib/doc-outline.ts), so none of them can disagree with another.
+    const { outline, flushOutline } = useDocOutline(blocks)
+    const labelsKey = JSON.stringify(outline.labels)
+    const marginNumbers = (blockId: string) => outline.blockNumbers.get(blockId) ?? []
+
+    /** The margin number of the n-th displayed equation of a block, as the sidekick's explanation card names it (null if it has none). */
+    const equationLabelFor = (blockId: string) => (eq: number | null) => {
+        const n = eq === null ? undefined : marginNumbers(blockId)[eq]
+        return n ? `(${n})` : null
+    }
 
     const emptyDoc = blocks.length === 1 && blocks[0].text.length === 0
 
@@ -366,13 +411,23 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
 
     return (
         <>
-            <div className="flex-1 flex flex-col bg-desk h-[calc(100vh-180px)] print:hidden">
+            <div className="flex-1 flex bg-desk h-[calc(100vh-180px)] print:hidden">
+              <OutlinePanel
+                  state={outlinePanel}
+                  outline={outline}
+                  blockIds={blockIds}
+                  focusedBlockId={focusedBlockId}
+                  containerRef={containerRef}
+              />
+              <div className="flex min-w-0 flex-1 flex-col">
                 <FormattingToolbar activeView={activeView} disabled={doc.permission === "read"} />
 
                 <div className="editor-desk flex-1 overflow-y-auto px-3 py-8 sm:px-8 sm:py-10"
                     ref={containerRef}
                     onClick={handleContainerClick}
                     onMouseDown={handleContainerMouseDown}
+                    // The block the cursor leaves is typeset again at once, so its equation numbers must be up to date too.
+                    onBlur={flushOutline}
                 >
                   <div className="editor-sheet editor-doc mx-auto flex w-full max-w-4xl flex-col">
                     {status === "disconnected" && (
@@ -405,12 +460,25 @@ export const TextEditor = forwardRef<TextEditorHandle, Props>(function TextEdito
                             }
                             onBlockMouseDown={handleBlockMouseDown}
                             consumeClickSuppression={consumeClickSuppression}
+                            equationLabel={equationLabelFor(block.id)}
+                            equationsKey={marginNumbers(block.id).map((n) => n ?? "").join(",")}
+                            labelsKey={labelsKey}
                         />
                     )}
                     <div className="h-[200px] shrink-0" />
                   </div>
                 </div>
+              </div>
             </div>
+
+            <SelectionToolbar
+                activeView={activeView}
+                blockSelection={selectionRange}
+                blockIds={blockIds}
+                containerRef={containerRef}
+                readOnly={doc.permission === "read"}
+                tick={toolbarTick}
+            />
 
             {marqueeRect && (
                 <div

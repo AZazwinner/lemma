@@ -8,7 +8,7 @@ from db.core.auth.schemas import AuthUserUpdate__Password
 from db.core.auth.services import update_authuser__password
 from db.modules.docs.crud import get_docs_by_owner_id, get_documentshares_by_id
 from db.modules.docs.schemas import DocShareListingResponse, DocumentResponsePermission, DocumentShareResponseExpanded, DocumentResponse, DocumentUpdate
-from db.modules.docs.services import create_document_from_template, delete_docshare__check_permissions, duplicate_doc__check_permissions, get_document_versions__check_permissions, get_trash__check_permissions, get_viewable_documents, permanently_delete_doc__check_permissions, restore_doc__check_permissions, restore_document_version__check_permissions, try_create_or_update_documentshare, try_get_documentshares, update_doc_text__check_permissions, delete_doc__check_permissions, try_get_documentshare, user_can_write_document, view_document
+from db.modules.docs.services import create_blank_document, delete_docshare__check_permissions, duplicate_doc__check_permissions, get_document_versions__check_permissions, get_trash__check_permissions, get_viewable_documents, permanently_delete_doc__check_permissions, restore_doc__check_permissions, restore_document_version__check_permissions, try_create_or_update_documentshare, try_get_documentshares, update_doc_text__check_permissions, delete_doc__check_permissions, try_get_documentshare, user_can_write_document, view_document
 from db.modules.users.crud import get_user_by_id
 from db.modules.users.models import User
 from db.modules.users.schemas import UserPublicResponse, UserPrivateResponse
@@ -20,7 +20,8 @@ router = APIRouter()
 MAX_TITLE_LENGTH = 255
 
 class CreateDocData(BaseModel):
-    template: Optional[str] = Field("Blank Document", max_length=100)
+    # A new document is always blank and starts as "Untitled" (the writer renames it afterwards), so the title is not used.
+    # It is still accepted, and still limited in length, so a client that sends one is checked as before.
     title: Optional[str] = Field("New document", max_length=MAX_TITLE_LENGTH)
 
 class CreateDocResponse(BaseModel):
@@ -32,7 +33,7 @@ def create_doc(
     current_user: UserPrivateResponse = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    doc = create_document_from_template(current_user.id, data.title, data.template, db)
+    doc = create_blank_document(current_user.id, db)
     return {
         "doc_id": doc.id
     }

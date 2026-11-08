@@ -162,7 +162,7 @@ def test_password_reset_also_invalidates_old_tokens(client, monkeypatch):
 
 def _configure_smtp(monkeypatch):
     monkeypatch.setenv("SMTP_HOST", "smtp.example.test")
-    monkeypatch.setenv("SMTP_USER", "mathboard@example.test")
+    monkeypatch.setenv("SMTP_USER", "lemma@example.test")
     monkeypatch.setenv("SMTP_PASSWORD", "app-password")
 
 
@@ -218,8 +218,8 @@ def test_forgot_password_sends_the_link_over_starttls_smtp(client, monkeypatch):
     assert steps == ["connect", "starttls", "login", "message"], "the password must only be sent after STARTTLS"
     _, to, sender, body, envelope_sender = sent[-1]
     assert to == "alice@example.com"
-    assert "mathboard@example.test" in sender
-    assert envelope_sender == "mathboard@example.test"
+    assert "lemma@example.test" in sender
+    assert envelope_sender == "lemma@example.test"
     assert "/reset-password?token=" in body
 
 
@@ -248,10 +248,10 @@ def test_a_malformed_smtp_from_falls_back_to_the_login_address(client, monkeypat
             sent.append((str(message["From"]), from_addr))
 
     _configure_smtp(monkeypatch)
-    monkeypatch.setenv("SMTP_FROM", "Mathboard mathboard@example.test")
+    monkeypatch.setenv("SMTP_FROM", "Lemma lemma@example.test")
     monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
     signup(client)
 
     client.post("/forgot-password", json={"email": "alice@example.com"})
 
-    assert sent == [("Mathboard <mathboard@example.test>", "mathboard@example.test")]
+    assert sent == [("Lemma <lemma@example.test>", "lemma@example.test")]

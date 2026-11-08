@@ -68,7 +68,7 @@ export const CreateAccount = ({
 
     return (
         <div className="space-y-4">
-            <AuthHeading title="Create account for Mathboard" subtitle="Pick up where your last proof left off" />
+            <AuthHeading title="Create account for Lemma" subtitle="Pick up where your last proof left off" />
 
             <AuthField
                 ref={usernameRef}
@@ -154,7 +154,7 @@ export const Signin = ({
 
     return (
         <div className="space-y-4">
-            <AuthHeading title="Sign in to Mathboard" subtitle="Pick up where your last proof left off" />
+            <AuthHeading title="Sign in to Lemma" subtitle="Pick up where your last proof left off" />
 
             <AuthField
                 id="signin-username"

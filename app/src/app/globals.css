@@ -556,18 +556,15 @@
   pointer-events: none;
 }
 
-.editor-doc {
-  counter-reset: eq;
-}
-
-/* Display equations number themselves in the right margin. Visual only. */
+/* A displayed equation that has a number shows it in the right margin. Which ones do, and which number, is decided over the
+   whole document (lib/equation-numbers.ts), and arrives as data-eqnum: a boxed result, a line of prose or an equation nobody
+   refers to takes none. Visual only. */
 .editor-doc .katex-display {
   position: relative;
-  counter-increment: eq;
 }
 
-.editor-doc .katex-display::after {
-  content: "(" counter(eq) ")";
+.editor-doc .katex-display[data-eqnum]::after {
+  content: "(" attr(data-eqnum) ")";
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
@@ -580,16 +577,7 @@
   transition: color 0.2s var(--ease);
 }
 
-/* An empty placeholder equation ($$ $$ in a template) doesn't take a number. */
-.editor-doc .katex-display:has(annotation:empty) {
-  counter-increment: none;
-}
-
-.editor-doc .katex-display:has(annotation:empty)::after {
-  content: none;
-}
-
-.editor-doc [data-block-index]:hover .katex-display::after {
+.editor-doc [data-block-index]:hover .katex-display[data-eqnum]::after {
   color: var(--ink);
 }
 
@@ -614,6 +602,15 @@
 .editor-doc [data-mark]:focus-within::before {
   opacity: 1;
   transform: none;
+}
+
+/* A step the Sidekick flagged: a red "!" in the block's margin (and, in the typeset text, a wavy underline under the step,
+   which is drawn by the CSS Custom Highlight API: see components/sidekick/flagHighlight.ts). Red only ever means an error. */
+.editor-doc [data-mark][data-flagged]::before {
+  content: "!";
+  opacity: 1;
+  transform: none;
+  color: var(--pencil);
 }
 
 /* An equation that won't compile is marked in red pencil. */

@@ -6,7 +6,7 @@ import { useDocuments, useSharedDocuments } from "@/hooks/useDocs"
 import { useTrash } from "@/hooks/useTrash"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { TemplateDocsRow } from "./TemplateDocs"
+import { NewDocumentCard } from "./NewDocumentCard"
 import { DocRows, type DocListItem } from "./DocRows"
 import { TrashRows } from "./TrashRows"
 import { createDoc, deleteDoc, duplicateDoc, permanentlyDeleteDoc, renameDoc, restoreDoc, type TrashedDocument } from "@/api/docs"
@@ -143,7 +143,7 @@ export default function DocsPage() {
 
   async function handleNewDocument() {
     try {
-      const res = await createDoc({ template: "Blank Document", title: "Untitled Document" })
+      const res = await createDoc()
       router.push(`/docs/d/${res.doc_id}`)
     } catch (err) {
       console.error("Failed to create doc:", err)
@@ -269,7 +269,7 @@ export default function DocsPage() {
       <header className="flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-hairline-soft bg-sheet px-5 py-2.5">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Logo className="h-4 w-4" />
-          mathboard
+          lemma
         </div>
 
         {/* On focus the magnifier slides to the right end and becomes the search button. It runs the same live filter. */}
@@ -347,7 +347,7 @@ export default function DocsPage() {
           {tab !== "trash" && (
             <section>
               <h2 className="mb-3 text-sm font-semibold tracking-[-0.005em] text-ink">Start a new document</h2>
-              <TemplateDocsRow />
+              <NewDocumentCard onCreate={handleNewDocument} />
             </section>
           )}
 

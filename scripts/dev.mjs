@@ -23,7 +23,7 @@ const appDir = path.join(root, "app");
 const isWin = process.platform === "win32";
 const venvDir = path.join(srcDir, "venv");
 const venvPython = path.join(venvDir, isWin ? "Scripts" : "bin", isWin ? "python.exe" : "python");
-const dbFile = path.join(srcDir, "mathboard.db");
+const dbFile = path.join(srcDir, "lemma.db");
 
 const WEB_PORT = 12000;
 const API_PORT = 12001;
@@ -354,7 +354,7 @@ async function start() {
       announced = true;
       say();
       say("--------------------------------------------------------------");
-      say("  Mathboard is running");
+      say("  Lemma is running");
       if (!apiOnly) say(`    App       ${webUrl}`);
       say(`    API       ${apiUrl}${webOnly ? "   (shared backend)" : ""}`);
       if (!webOnly) say(`    Database  ${describeDatabase()}   (start over: npm run reset-db)`);

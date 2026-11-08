@@ -21,6 +21,9 @@ from modules.sidekick.schemas import (
     NextResponse,
     StatusResponse,
     StepsRequest,
+    WriteIntoDocRequest,
+    WriteRequest,
+    WriteResponse,
 )
 
 router = APIRouter(prefix="/sidekick", tags=["sidekick"])
@@ -60,10 +63,20 @@ async def sidekick_latex(data: LatexRequest, current_user: UserPrivateResponse =
 @router.post("/explain", response_model=ExplainResponse)
 async def sidekick_explain(data: ExplainRequest, current_user: UserPrivateResponse = Depends(get_current_user)):
     try:
-        summary, steps, cached = await service.explain(current_user.id, data.latex)
+        text, cached = await service.explain(current_user.id, data.latex)
     except _HANDLED as e:
         raise _translate(e) from None
-    return {"summary": summary, "steps": steps, "cached": cached, "mock": config.mode() == "mock"}
+    return {"text": text, "cached": cached, "mock": config.mode() == "mock"}
+
+
+@router.post("/write", response_model=WriteResponse)
+async def sidekick_write(data: WriteRequest, current_user: UserPrivateResponse = Depends(get_current_user)):
+    """Writes a passage from a description. Nothing is saved: the page shows it as a suggestion to accept."""
+    try:
+        text, cached = await service.write(current_user.id, data.text)
+    except _HANDLED as e:
+        raise _translate(e) from None
+    return {"text": text, "cached": cached, "mock": config.mode() == "mock"}
 
 
 @router.post("/image", response_model=LatexResponse)
@@ -140,10 +153,8 @@ async def sidekick_explain_into_doc(
 ):
     room = await collab.require_room(doc_id, current_user.id)
     try:
-        summary, steps, cached = await service.explain(
-            current_user.id, data.latex, on_working=lambda: collab.working(room)
-        )
-        block_id = await collab.insert_block_after(room, data.after_block_id, explanation_text(summary, steps))
+        text, cached = await service.explain(current_user.id, data.latex, on_working=lambda: collab.working(room))
+        block_id = await collab.insert_block_after(room, data.after_block_id, explanation_text(text))
     except _HANDLED as e:
         collab.done(room, 0)
         raise _translate(e) from None
@@ -154,5 +165,25 @@ async def sidekick_explain_into_doc(
     return {"block_id": block_id, "cached": cached, "mock": config.mode() == "mock"}
 
 
-def explanation_text(summary: str, steps: list[str]) -> str:
-    return "\n".join([summary, *(f"{n}. {step}" for n, step in enumerate(steps, 1))])
+@router.post("/docs/{doc_id}/write", response_model=IntoDocResponse)
+async def sidekick_write_into_doc(
+    doc_id: int, data: WriteIntoDocRequest, current_user: UserPrivateResponse = Depends(get_current_user)
+):
+    """Like /write, but the Sidekick writes the passage into the live document: one block per paragraph or displayed equation."""
+    room = await collab.require_room(doc_id, current_user.id)
+    try:
+        text, cached = await service.write(current_user.id, data.text, on_working=lambda: collab.working(room))
+        block_ids = await collab.insert_blocks_after(room, data.after_block_id, service.split_blocks(text))
+    except _HANDLED as e:
+        collab.done(room, 0)
+        raise _translate(e) from None
+    except BaseException:
+        collab.done(room, 0)
+        raise
+    collab.done(room)
+    return {"block_id": block_ids[0], "cached": cached, "mock": config.mode() == "mock"}
+
+
+def explanation_text(text: str) -> str:
+    """The explanation as one paragraph for the document: its sentences, which the model wrote one per line, joined."""
+    return " ".join(line.strip() for line in text.splitlines() if line.strip())

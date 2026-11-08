@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
-import { blockSource, ghost, openSidekickMenu, startWriting } from "./sidekick-helpers"
+import { blockSource, editorFocused, ghost, ghostPreview, noticeRow, openSidekickMenu, slowSidekick, startWriting, thinking } from "./sidekick-helpers"
 
 // A 1x1 PNG. The browser decodes and re-encodes it, so the whole path (choose file, shrink, send, ghost) is real; only
 // the answer is canned, because the backend runs with SIDEKICK_MOCK=1.
@@ -12,8 +12,9 @@ const MOCK_LATEX = "x^2 + 2x + 1 = (x + 1)^2"
 
 const choosePhoto = (page: Page, file = photo) => page.getByTestId("sidekick-photo-input").setInputFiles(file)
 
-test("Photo → LaTeX sends a shrunk JPEG and shows the result as ghost text to accept with Tab", async ({ page }) => {
+test("Photo → LaTeX sends a shrunk JPEG and shows the result as a ghost block to accept with Tab", async ({ page }) => {
     await startWriting(page, "sk_photo")
+    await slowSidekick(page)
     await page.keyboard.type("Board from class:")
     const sent: { url: string; body: string }[] = []
     page.on("request", (request) => {
@@ -23,9 +24,12 @@ test("Photo → LaTeX sends a shrunk JPEG and shows the result as ghost text to 
     await openSidekickMenu(page)
     await choosePhoto(page)
 
-    await expect(ghost(page)).toContainText(MOCK_LATEX)
+    await expect(thinking(page)).toBeVisible()
+    await expect(ghost(page)).toBeVisible()
+    await expect(ghost(page)).toContainText("Suggested equation")
+    await expect(ghostPreview(page).locator("annotation")).toContainText(MOCK_LATEX)
     expect(await blockSource(page)).toBe("Board from class:") // nothing written yet
-    expect(await page.evaluate(() => document.activeElement?.classList.contains("cm-content"))).toBe(true)
+    expect(await editorFocused(page)).toBe(true)
 
     expect(sent).toHaveLength(1)
     const body = JSON.parse(sent[0].body)
@@ -39,7 +43,6 @@ test("Photo → LaTeX sends a shrunk JPEG and shows the result as ghost text to 
 
 test("an empty block is replaced by the transcription, and Esc dismisses it", async ({ page }) => {
     await startWriting(page, "sk_photo_empty")
-    await openSidekickMenu(page)
     await choosePhoto(page)
     await expect(ghost(page)).toBeVisible()
 
@@ -47,7 +50,6 @@ test("an empty block is replaced by the transcription, and Esc dismisses it", as
     await expect(ghost(page)).toHaveCount(0)
     expect(await blockSource(page)).toBe("")
 
-    await openSidekickMenu(page)
     await choosePhoto(page)
     await expect(ghost(page)).toBeVisible()
     await page.keyboard.press("Tab")
@@ -63,7 +65,7 @@ test("a file that isn't a supported picture is turned away without sending anyth
 
     await openSidekickMenu(page)
     await choosePhoto(page, { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("hello") })
-    await expect(page.getByTestId("sidekick-notice")).toContainText("PNG, JPEG or WebP")
+    await expect(noticeRow(page)).toContainText("PNG, JPEG or WebP")
     await page.waitForTimeout(400)
     expect(requests).toBe(0)
 })
@@ -72,12 +74,13 @@ test("a picture that can't be decoded gets a quiet note", async ({ page }) => {
     await startWriting(page, "sk_photo_bad")
     await openSidekickMenu(page)
     await choosePhoto(page, { name: "broken.png", mimeType: "image/png", buffer: Buffer.from("not really a png") })
-    await expect(page.getByTestId("sidekick-notice")).toContainText("Couldn't read that picture")
+    await expect(noticeRow(page)).toContainText("Couldn't read that picture")
     await expect(ghost(page)).toHaveCount(0)
 })
 
 test("typing while the sidekick reads the photo drops its answer", async ({ page }) => {
     await startWriting(page, "sk_photo_typing")
+    await slowSidekick(page)
     await page.keyboard.type("class notes")
     await openSidekickMenu(page)
     await choosePhoto(page)
@@ -99,6 +102,6 @@ test("a busy answer for a photo is a quiet note", async ({ page }) => {
     )
     await openSidekickMenu(page)
     await choosePhoto(page)
-    await expect(page.getByTestId("sidekick-notice")).toContainText(/busy.*try again in 20s/i)
+    await expect(noticeRow(page)).toContainText(/busy.*try again in 20s/i)
     await expect(ghost(page)).toHaveCount(0)
 })

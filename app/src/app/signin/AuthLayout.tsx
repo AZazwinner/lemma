@@ -13,7 +13,7 @@ function Brand({ className }: { className?: string }) {
   return (
     <Link href="/" className={cn("flex w-fit items-center gap-2 text-sm font-medium", className)}>
       <Logo className="h-4 w-4" />
-      mathboard
+      lemma
     </Link>
   )
 }
@@ -52,7 +52,7 @@ export function AuthCardShell({
         <div className="flex min-h-[60px] flex-wrap items-center justify-between gap-3 border-b border-hairline-soft bg-[color-mix(in_srgb,var(--tint)_45%,var(--sheet))] px-5 py-3">
           <span className="flex items-center gap-2 text-sm font-medium">
             <Logo className="h-4 w-4" />
-            mathboard
+            lemma
           </span>
           {top}
         </div>

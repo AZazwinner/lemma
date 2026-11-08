@@ -3,7 +3,7 @@ import { Logo } from "@/components/Logo"
 import { Button } from "@/components/ui/button"
 
 export const metadata = {
-  title: "Page not found: Mathboard",
+  title: "Page not found: Lemma",
 }
 
 export default function NotFound() {

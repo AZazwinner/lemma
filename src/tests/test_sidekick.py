@@ -226,11 +226,100 @@ def test_mock_latex_returns_a_canned_answer_without_calling_google(client, token
     assert calls == []
 
 
-def test_mock_explain_returns_a_summary_and_steps(client, token):
-    resp = client.post("/sidekick/explain", json={"latex": "x^2"}, headers=auth(token))
-    body = resp.json()
+def explain(client, token, latex):
+    resp = client.post("/sidekick/explain", json={"latex": latex}, headers=auth(token))
     assert resp.status_code == 200
-    assert body["summary"] and len(body["steps"]) == 3 and body["mock"] is True
+    body = resp.json()
+    assert body["mock"] is True
+    return body["text"]
+
+
+def test_mock_explain_is_three_to_five_sentences_about_the_actual_equation(client, token):
+    text = explain(client, token, "$$x^2 + y^2 = z^2$$")
+    assert 3 <= len(text.splitlines()) <= 5
+    # it names the symbols that are in the block, not generic advice
+    assert "Pythagorean" in text and "$x$" in text and "$y$" in text and "$z$" in text
+    assert "left-hand side as the quantity" not in text
+
+
+def test_mock_explain_differs_between_equations(client, token):
+    quadratic = explain(client, token, r"x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}")
+    integral = explain(client, token, r"\int_0^1 x^2 \, dx")
+    assert "discriminant" in quadratic and "$b^2 - 4ac$" in quadratic
+    assert "power rule" in integral and r"\frac{1}{3}" in integral
+    assert quadratic != integral
+
+
+def test_mock_explain_names_the_symbols_of_an_equation_it_does_not_know(client, token):
+    text = explain(client, token, r"E = \frac{1}{2} m v^2")
+    assert 3 <= len(text.splitlines()) <= 5
+    assert all(symbol in text for symbol in ("$E$", "$m$", "$v$"))
+    assert "fraction" in text and "power" in text
+
+
+def test_mock_explain_writes_all_maths_between_single_dollars(client, token):
+    for latex in ("2x + 3 = 7", r"\sum_{k=1}^{n} k = \frac{n(n+1)}{2}", r"\frac{d}{dx} x^3 = 3x^2"):
+        text = explain(client, token, latex)
+        assert "$$" not in text and "\\(" not in text and "\\[" not in text
+
+
+def test_mock_write_proof_has_dollar_delimited_maths_and_no_bracket_delimiters(client, token):
+    resp = client.post(
+        "/sidekick/write", json={"text": "a proof that there are infinitely many primes"}, headers=auth(token)
+    )
+    body = resp.json()
+    assert resp.status_code == 200 and body["mock"] is True and body["cached"] is False
+    assert "$p_1, p_2, \\ldots, p_n$" in body["text"]
+    assert "\\[" not in body["text"] and "\\(" not in body["text"]
+    # one block per paragraph or displayed equation, and each displayed equation has its $$ on lines of their own
+    blocks = service.split_blocks(body["text"])
+    assert len(blocks) >= 5
+    equations = [block for block in blocks if block.startswith("$$")]
+    assert len(equations) == 2 and all(block.startswith("$$\n") and block.endswith("\n$$") for block in equations)
+
+
+def test_mock_write_one_expression_is_one_displayed_equation(client, token):
+    body = client.post("/sidekick/write", json={"text": "integral of x squared"}, headers=auth(token)).json()
+    assert body["text"] == "$$\n\\int_0^1 x^2 \\, dx\n$$"
+    assert service.split_blocks(body["text"]) == [body["text"]]
+
+
+def test_the_write_prompt_asks_for_no_boxes_labels_or_numbering(monkeypatch):
+    """A model that boxed its theorem statement and conclusion (and had them numbered) was the reason for this."""
+    from modules.sidekick import prompts
+
+    text = prompts.WRITE_SYSTEM
+    assert "\\boxed" in text and "\\label" in text and "\\tag" in text
+    assert "in a sentence" in text
+
+
+def test_the_mock_proof_has_no_boxes_or_labels():
+    proof = mock._mock_write("a proof that there are infinitely many primes")
+    assert "\\boxed" not in proof and "\\label" not in proof and "\\tag" not in proof
+
+
+def test_write_is_listed_as_a_feature_and_needs_a_login(client, token):
+    assert "write" in client.get("/sidekick/status", headers=auth(token)).json()["features"]
+    assert client.post("/sidekick/write", json={"text": "x"}).status_code in (401, 422)
+    assert client.post("/sidekick/write", json={"text": ""}, headers=auth(token)).status_code == 422
+    assert client.post("/sidekick/write", json={"text": "x" * 2001}, headers=auth(token)).status_code == 422
+
+
+def test_write_and_explain_are_rate_limited_like_everything_else(client, token, monkeypatch):
+    go_live(monkeypatch)
+    monkeypatch.setenv("SIDEKICK_USER_PER_MINUTE", "2")
+    fake_generate(monkeypatch)
+    assert client.post("/sidekick/write", json={"text": "a"}, headers=auth(token)).status_code == 200
+    assert client.post("/sidekick/explain", json={"latex": "a"}, headers=auth(token)).status_code == 200
+    resp = client.post("/sidekick/write", json={"text": "b"}, headers=auth(token))
+    assert resp.status_code == 429 and resp.headers["retry-after"]
+
+
+def test_write_cleans_delimiters_a_model_used_despite_the_instructions(client, token, monkeypatch):
+    go_live(monkeypatch)
+    fake_generate(monkeypatch, ["```markdown\nLet \\(p\\) be prime. Then\n\\[\np \\mid N\n\\]\nholds.\n```"])
+    body = client.post("/sidekick/write", json={"text": "a note"}, headers=auth(token)).json()
+    assert body["text"] == "Let $p$ be prime. Then\n\n$$\np \\mid N\n$$\n\nholds."
 
 
 def test_mock_mode_does_not_spend_the_daily_budget(client, token):
@@ -530,17 +619,37 @@ def test_clean_latex(raw, expected):
     assert service.clean_latex(raw) == expected
 
 
-def test_parse_explanation_reads_the_requested_format():
-    summary, steps = service.parse_explanation("SUMMARY: It squares x.\n1. Take x.\n2) Multiply it by itself.\n- Done.")
-    assert summary == "It squares x."
-    assert steps == ["Take x.", "Multiply it by itself.", "Done."]
+def test_parse_explanation_reads_one_sentence_per_line():
+    raw = "It squares $x$.\nThe result, $x^2$, is never negative.\nSo $x^2 \\ge 0$."
+    assert service.parse_explanation(raw) == ["It squares $x$.", "The result, $x^2$, is never negative.", "So $x^2 \\ge 0$."]
 
 
-def test_parse_explanation_survives_a_model_that_ignores_the_format():
-    summary, steps = service.parse_explanation("It squares x.\nThen it stops.")
-    assert summary == "It squares x." and steps == ["Then it stops."]
+def test_parse_explanation_tolerates_numbering_bullets_and_the_old_summary_format():
+    sentences = service.parse_explanation("SUMMARY: It squares x.\n1. Take x.\n2) Multiply it by itself.\n- Done.")
+    assert sentences == ["It squares x.", "Take x.", "Multiply it by itself.", "Done."]
 
 
-def test_parse_explanation_caps_the_steps():
-    raw = "SUMMARY: s\n" + "\n".join(f"{n}. step" for n in range(1, 20))
-    assert len(service.parse_explanation(raw)[1]) == 8
+def test_parse_explanation_turns_every_kind_of_math_delimiter_into_single_dollars():
+    raw = "Here \\(x\\) and \\[y\\] and $$z$$ appear."
+    assert service.parse_explanation(raw) == ["Here $x$ and $y$ and $z$ appear."]
+
+
+def test_parse_explanation_caps_the_length():
+    raw = "\n".join(f"Sentence number {n}." for n in range(1, 20))
+    assert len(service.parse_explanation(raw)) == 5
+
+
+def test_normalize_math_converts_bracket_delimiters_but_leaves_escaped_ones():
+    assert service.normalize_math("a \\(b\\) c") == "a $b$ c"
+    assert service.normalize_math("x\n\\[\ny\n\\]\nz") == "x\n\n$$\ny\n$$\n\nz"
+    # a line that is only $$y$$ is a displayed equation; one inside a sentence is left alone
+    assert service.normalize_math("x\n$$y$$\nz") == "x\n$$\ny\n$$\nz"
+    assert service.normalize_math("so $$y$$ holds") == "so $$y$$ holds"
+    # \\[2pt] is a line break with a length, not the start of a display equation
+    assert service.normalize_math("a \\\\[2pt] b") == "a \\\\[2pt] b"
+
+
+def test_split_blocks_splits_at_blank_lines_but_not_inside_equations_or_code():
+    text = "First.\n\n$$\na\n\nb\n$$\n\nSecond.\n\n```\ncode\n\nmore\n```\n"
+    assert service.split_blocks(text) == ["First.", "$$\na\n\nb\n$$", "Second.", "```\ncode\n\nmore\n```"]
+    assert service.split_blocks("   \n\n ") == []

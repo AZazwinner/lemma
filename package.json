@@ -1,5 +1,5 @@
 {
-  "name": "mathboard",
+  "name": "lemma",
   "private": true,
   "description": "Local development launcher. The app itself is in app/ (Next.js) and src/ (FastAPI); see README.md.",
   "scripts": {

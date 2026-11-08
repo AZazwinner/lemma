@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import * as Y from "yjs"
 import type { Awareness } from "y-protocols/awareness.js"
 import { EditorView, keymap } from "@codemirror/view"
@@ -17,6 +17,9 @@ import type { MathSymbol } from "./math-symbols"
 import { extractBlocksFromClipboardEvent } from "./blockClipboard"
 import { imageDecorations } from "./imageWidget"
 import { sidekickExtension } from "@/components/sidekick/extension"
+import { SidekickResults } from "@/components/sidekick/SidekickResults"
+import { useBlockSlots } from "@/components/sidekick/useSidekick"
+import { findRenderedRange, setBlockFlag } from "@/components/sidekick/flagHighlight"
 
 type SlashMenuState = { query: string; left: number; top: number; index: number }
 
@@ -50,6 +53,9 @@ export function BlockEditor({
     isSelected,
     onBlockMouseDown,
     consumeClickSuppression,
+    equationLabel,
+    equationsKey,
+    labelsKey,
 }: {
     id: string
     type: string
@@ -66,19 +72,40 @@ export function BlockEditor({
     requestFocus: (index: number, atEnd?: boolean, pos?: number) => void
     containerRef: React.RefObject<HTMLDivElement | null>
     emptyDoc: boolean
-    onFocusView?: (view: EditorView) => void
+    onFocusView?: (view: EditorView, blockId: string) => void
     onActiveViewUpdate?: () => void
     isSelected: boolean
     onBlockMouseDown: (index: number, e: React.MouseEvent) => void
 
     consumeClickSuppression: () => boolean
+    /** "(3)" for the n-th numbered equation of this block (or null), which the sidekick's explanation card names. */
+    equationLabel: (eq: number | null) => string | null
+    /** The margin number of each displayed equation of this block, "1,,3" (an empty entry is none), as a string so it only changes when a number does. */
+    equationsKey: string
+    /** Label name to equation number for the whole document, as JSON, for `\eqref{name}`. */
+    labelsKey: string
 }) {
     const [isFocused, setIsFocused] = useState(false)
     const [previewText, setPreviewText] = useState(text.toString())
     const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
     const [symbolMenu, setSymbolMenu] = useState<SymbolMenuState | null>(null)
     const editorContainerRef = useRef<HTMLDivElement | null>(null)
+    const previewRef = useRef<HTMLDivElement | null>(null)
     const viewRef = useRef<EditorView | null>(null)
+
+    const equations = useMemo(() => (equationsKey === "" ? [] : equationsKey.split(",").map((n) => (n === "" ? null : Number(n)))), [equationsKey])
+    const labels = useMemo<Record<string, number>>(() => JSON.parse(labelsKey), [labelsKey])
+
+    // A step the sidekick flagged: the block gets a red "!" in the margin, and the step a squiggle in the typeset text.
+    const problem = useBlockSlots(id)?.problem
+    const flagText = problem?.phase === "found" ? (problem.flag?.raw ?? null) : null
+    useEffect(() => {
+        if (!flagText || isFocused) return
+        const root = previewRef.current
+        if (!root) return
+        setBlockFlag(id, findRenderedRange(root, flagText))
+        return () => setBlockFlag(id, null)
+    }, [flagText, isFocused, previewText, id])
 
 
     useLayoutEffect(() => {
@@ -385,7 +412,7 @@ export function BlockEditor({
         const state = EditorState.create({
             doc: text.toString(),
             extensions: [
-                sidekickExtension(id),
+                sidekickExtension(id, text),
                 blockKeymap,
 
                 Prec.highest(keymap.of(yUndoManagerKeymap)),
@@ -419,7 +446,7 @@ export function BlockEditor({
 
         view.contentDOM.addEventListener("focus", () => {
             setIsFocused(true)
-            latest.current.onFocusView?.(view)
+            latest.current.onFocusView?.(view, id)
         })
         view.contentDOM.addEventListener("blur", () => {
             setIsFocused(false)
@@ -456,9 +483,17 @@ export function BlockEditor({
     }, [])
 
     return (
-        <div className="w-full flex justify-center">
-            <div key={id} data-block-index={position} data-mark={blockMark(previewText)} className="w-full max-w-4xl relative">
+        <div className="w-full flex flex-col items-center">
+            <div
+                key={id}
+                data-block-index={position}
+                data-block-id={id}
+                data-mark={blockMark(previewText)}
+                data-flagged={problem?.phase === "found" ? "" : undefined}
+                className="w-full max-w-4xl relative"
+            >
                 <div
+                    ref={previewRef}
                     onClick={() => {
                         if (consumeClickSuppression()) return
                         viewRef.current?.focus()
@@ -475,7 +510,7 @@ export function BlockEditor({
                         isSelected ? "bg-[var(--wash)]" : "hover:bg-tint"
                     )}
                 >
-                    <LatexRenderer content={previewText} />
+                    <LatexRenderer content={previewText} equations={equations} labels={labels} />
                 </div>
                 <div
                     ref={editorContainerRef}
@@ -487,6 +522,8 @@ export function BlockEditor({
                     )}
                 />
             </div>
+
+            <SidekickResults blockId={id} readOnly={permission === "read"} focused={isFocused} equationLabel={equationLabel} />
 
             {slashMenu && (
                 <SlashMenu

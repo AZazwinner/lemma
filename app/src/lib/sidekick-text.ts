@@ -43,7 +43,7 @@ export function latexSource(doc: string, selFrom: number, selTo: number): Source
     return text ? { from: 0, to: doc.length, text, raw: doc, block: true } : null
 }
 
-/** What to explain: the selection, else the whole block, with any "@sidekick" prefix and math delimiters removed. */
+/** What to explain: the selection, else the whole block, with any "@sidekick" prefix removed. */
 export function explainSource(doc: string, selFrom: number, selTo: number): string {
     const raw = selFrom !== selTo ? doc.slice(Math.min(selFrom, selTo), Math.max(selFrom, selTo)) : doc
     return raw
@@ -57,23 +57,56 @@ export function wrapLatex(latex: string, block: boolean): string {
     return block ? `$$\n${body}\n$$` : `$${body}$`
 }
 
-/** The explanation as plain text for "Insert below". */
-export function explanationText(summary: string, steps: string[]): string {
-    const lines = [summary, ...steps.map((s, i) => `${i + 1}. ${s}`)].filter(Boolean)
-    return lines.join("\n")
+/** The sentences of an explanation (the backend sends them one per line). */
+export function explanationLines(text: string): string[] {
+    return text
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
 }
 
-/** True if the text the request was made for is still exactly where it was. If it moved or changed, the answer is dropped. */
-export function isUnchanged(doc: string, source: Source): boolean {
-    if (doc.slice(source.from, source.to) !== source.raw) return false
-    // A whole line or block must still end where it did: something typed at its end changes what was asked.
-    return !source.block || source.to === doc.length || doc.charAt(source.to) === "\n"
+/** An explanation as one paragraph, for "Insert as note". */
+export function explanationNote(text: string): string {
+    return explanationLines(text).join(" ")
 }
 
-/** A short line for the ghost preview. */
-export function previewOf(latex: string, max = 90): string {
-    const flat = latex.replace(/\s+/g, " ").trim()
-    return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat
+/**
+ * The smallest edit that turns `before` into `after`: the text they share at the start and at the end is left alone.
+ * A repaired block is applied this way, so a collaborator's cursor elsewhere in the block does not move.
+ */
+export function minimalEdit(before: string, after: string): { from: number; to: number; insert: string } | null {
+    if (before === after) return null
+    const shortest = Math.min(before.length, after.length)
+    let start = 0
+    while (start < shortest && before[start] === after[start]) start++
+    let endBefore = before.length
+    let endAfter = after.length
+    while (endBefore > start && endAfter > start && before[endBefore - 1] === after[endAfter - 1]) {
+        endBefore--
+        endAfter--
+    }
+    return { from: start, to: endBefore, insert: after.slice(start, endAfter) }
+}
+
+/** Splits text into document blocks at blank lines, but never inside a `$$ ... $$` equation or a code fence. */
+export function splitBlocks(text: string): string[] {
+    const blocks: string[] = []
+    let current: string[] = []
+    let inMath = false
+    let inCode = false
+    for (const line of text.trim().split("\n")) {
+        const stripped = line.trim()
+        if (stripped.startsWith("```")) inCode = !inCode
+        else if (!inCode && stripped === "$$") inMath = !inMath
+        if (!stripped && !inMath && !inCode) {
+            if (current.length > 0) blocks.push(current.join("\n"))
+            current = []
+            continue
+        }
+        current.push(line)
+    }
+    if (current.length > 0) blocks.push(current.join("\n"))
+    return blocks
 }
 
 export type Notice = { kind: "busy" | "error" | "info"; text: string; retryAfter?: number }
@@ -103,6 +136,8 @@ export function noticeFor(kind: string, retryAfter?: number, reason?: string): N
             return { kind: "error", text: "You can't edit this document, so the sidekick can't add to it." }
         case "not-open":
             return { kind: "error", text: "The document isn't connected yet. Try again in a moment." }
+        case "outdated":
+            return { kind: "info", text: "The server is running an older version of the sidekick. Restart the backend, then try again." }
         case "signed-out":
             return { kind: "error", text: "Sign in again to use the sidekick." }
         case "network":

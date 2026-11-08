@@ -11,83 +11,9 @@ from db.modules.docs.models import DocumentShare
 from db.modules.users.crud import get_user_by_id
 
 
-TEMPLATE_BLOCKS: dict[str, list[str]] = {
-    "Math Notes": [
-        "# Math Notes",
-        "## Definitions",
-        "",
-        "## Key Formulas",
-        "$$\n\n$$",
-        "## Worked Examples",
-        "",
-    ],
-    "Homework Template": [
-        "# Homework",
-        "**Name:**  \n**Course:**  \n**Due date:**",
-        "## Problem 1",
-        "",
-        "## Problem 2",
-        "",
-        "## Problem 3",
-        "",
-    ],
-    "Lecture Summary": [
-        "# Lecture Summary",
-        "**Course:**  \n**Date:**  \n**Topic:**",
-        "## Key Takeaways",
-        "",
-        "## Definitions & Formulas",
-        "$$\n\n$$",
-        "## Questions to Follow Up On",
-        "",
-    ],
-    "Research Paper": [
-        "# Title",
-        "**Author:**  \n**Date:**",
-        "## Abstract",
-        "",
-        "## Introduction",
-        "",
-        "## Methods",
-        "",
-        "## Results",
-        "",
-        "## Discussion",
-        "",
-        "## References",
-        "",
-    ],
-    "Proof Writing": [
-        "# Proof",
-        "**Theorem.**",
-        "",
-        "**Proof.**",
-        "",
-        "$\\blacksquare$",
-    ],
-    "Exam Prep Sheet": [
-        "# Exam Prep Sheet",
-        "## Formulas",
-        "$$\n\n$$",
-        "## Key Concepts",
-        "",
-        "## Common Mistakes to Avoid",
-        "",
-        "## Practice Problems",
-        "",
-    ],
-}
-
-def create_document_from_template(
-        owner_id: int,
-        title: str | None,
-        template: str | None,
-        db: Session,
-):
-    """`title` is used as given except for a blank/unrecognized template, which falls back to the model's "Untitled" default."""
-    block_contents = TEMPLATE_BLOCKS.get(template) if template else None
-    doc_title = title if block_contents else None
-    return create_document(owner_id, db, title=doc_title, block_contents=block_contents)
+def create_blank_document(owner_id: int, db: Session):
+    """A new document: one empty block, titled by the model's default ("Untitled")."""
+    return create_document(owner_id, db)
 
 
 def update_doc_text__check_permissions(

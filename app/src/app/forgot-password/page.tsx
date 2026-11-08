@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import ForgotPasswordPage from "./ForgotPasswordPage"
 
 export const metadata: Metadata = {
-  title: "Forgot password — Mathboard",
+  title: "Forgot password — Lemma",
   alternates: { canonical: "/forgot-password" },
 }
 
