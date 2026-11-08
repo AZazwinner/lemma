@@ -158,6 +158,32 @@ def clean_latex(raw: str) -> str:
     return text
 
 
+_TEXT_CMD = re.compile(r"\\text\{([^{}]*)\}")
+_DISPLAY_ONLY = re.compile(r"\$\$\s*([\s\S]*?)\s*\$\$")
+
+
+def repair_text_commands(text: str) -> str:
+    """A model sometimes writes a page of sentences as one LaTeX line-list (\\text{words} math \\text{words} \\\\), either bare or
+    inside a single $$ block. Neither renders as a page: bare, the \\text shows up literally; inside $$, the sentences are set as
+    maths. Turn it back into Markdown: the \\text{} words become plain text, the maths between them $...$, one line per line."""
+    whole = _DISPLAY_ONLY.fullmatch(text)
+    body = whole.group(1) if whole else (text if "$" not in text else None)
+    if body is None or not any(len(words.split()) >= 4 for words in _TEXT_CMD.findall(body)):
+        return text  # an equation with a short \text{ if } is fine as it is
+    lines = []
+    for line in body.splitlines():
+        line = re.sub(r"\s*\\\\?\s*$", "", line)  # the \\ (or a \ that lost its twin) that ends a line
+        pieces, pos = [], 0
+        for match in _TEXT_CMD.finditer(line):
+            pieces += [("math", line[pos : match.start()]), ("words", match.group(1))]
+            pos = match.end()
+        pieces.append(("math", line[pos:]))
+        out = [f"${piece.strip()}$" if kind == "math" else piece.strip() for kind, piece in pieces if piece.strip()]
+        if out:
+            lines.append(" ".join(out))
+    return "\n".join(lines)
+
+
 _BRACKET_DISPLAY = re.compile(r"(?<!\\)\\\[([\s\S]+?)(?<!\\)\\\]")
 _BRACKET_INLINE = re.compile(r"(?<!\\)\\\((.+?)(?<!\\)\\\)")
 _DOLLAR_DISPLAY = re.compile(r"\$\$([\s\S]+?)\$\$")
@@ -272,7 +298,7 @@ async def image_to_latex(user_id: int, data: bytes, mime_type: str, on_working=N
     digest = hashlib.sha256(data).hexdigest()
     answer, from_cache = await _run("image", user_id, f"{mime_type}:{digest}", on_working, prompts.IMAGE_PROMPT, (data, mime_type))
     # Markdown now (prose, $...$ and $$ blocks), not bare LaTeX, so only fences and bracket delimiters are normalized.
-    text = normalize_math(strip_fences(answer))
+    text = repair_text_commands(normalize_math(strip_fences(answer)))
     if not text:
         raise SidekickUpstreamError("empty transcription")
     return text, from_cache

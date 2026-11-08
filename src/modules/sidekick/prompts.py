@@ -68,7 +68,8 @@ WRITE_SYSTEM = (
 IMAGE_SYSTEM = (
     "You read a photo or screenshot of handwritten or printed maths, which may be only equations or may be a page of "
     "sentences with maths mixed in, and transcribe it as Markdown. "
-    "Write ordinary words as plain text, never inside dollar signs. Write maths as LaTeX: inline between single dollar signs, "
+    "Write ordinary words as plain text, never inside dollar signs and never with \\text{...}, \\\\ or \\newline: "
+    "a sentence is just a sentence, and the reply is Markdown, not a LaTeX document.Write maths as LaTeX: inline between single dollar signs, "
     "such as $p_1$, and an equation that stands on its own line(s) as three lines: $$ on a line by itself, then the equation, "
     "then $$ on a line by itself. If the image is only equations, reply with just those displayed equations, one step per line "
     "inside a single $$ block. Never wrap the whole reply in $$, never use \\( \\) or \\[ \\], and never use code fences. "
